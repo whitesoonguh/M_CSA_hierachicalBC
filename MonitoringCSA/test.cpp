@@ -19,17 +19,18 @@ using namespace std;
 using namespace chrono;
 
 void ZKMP_test(){
+    cout << "<<< ZKMP TEST START >>>" << endl;
 
     ofstream fout1;
     ofstream fout2;
     fout1.open("ZKMP_p.txt");
     fout2.open("ZKMP_v.txt");
 
-    zkbpacc_setup setup;
-    setup.init(8);
-
     PCS pcs;
     pcs.setup(8);
+
+    zkbpacc_setup setup;
+    setup.setup_from_pcs(pcs);    
 
     FrVec A = {120, 274, 225, 85, 15, 1};
     FrVec I = {1,1};
@@ -66,6 +67,10 @@ void ZKMP_test(){
 
         bool flag = ZKMP_verify(zkmp);
 
+        if (~flag) {
+            throw std::runtime_error("Verification Failed on ZKMP_test");
+        }
+
         auto end_2 = chrono::steady_clock::now();
         elaps = duration_cast<microseconds>(end_2-start_2);
         fout2<< elaps.count()<< ", ";
@@ -79,14 +84,12 @@ void ZKMP_test(){
 }
 
 void ZKNMP_test(){
+    cout << "<<< ZKNMP TEST START >>>" << endl;
 
     ofstream fout1;
     ofstream fout2;
     fout1.open("ZKNMP_p.txt");
     fout2.open("ZKNMP_v.txt");
-
-    zkbpacc_setup setup1;
-    setup1.init(8);
 
     FrVec poly1 = {6, 11, 6, 1};
     FrVec poly2 = {1, 4};
@@ -99,6 +102,9 @@ void ZKNMP_test(){
 
     PCS pcs1;
     pcs1.setup(8);
+
+    zkbpacc_setup setup1;
+    setup1.setup_from_pcs(pcs1);    
 
     G1 pi_1 = pcs1.commit_G1(alpha);
     G1 pi_2 = pcs1.commit_G1(beta);
@@ -133,6 +139,10 @@ void ZKNMP_test(){
 
         bool flag = ZKNMP_verify(nmp);
 
+        if (~flag) {
+            throw std::runtime_error("Verification Failed on ZKNMP_test");
+        }        
+
         auto end_2 = chrono::steady_clock::now();
         elaps = duration_cast<microseconds>(end_2-start_2);
         fout2<< elaps.count()<< ", ";
@@ -148,6 +158,7 @@ void ZKNMP_test(){
 
 
 void ZKSP_test(){
+    cout << "<<< ZKSP TEST START >>>" << endl;
 
     ofstream fout1;
     ofstream fout2;
@@ -203,6 +214,10 @@ void ZKSP_test(){
 
         bool flag = ZKSP_verify(pi3);
 
+        if (~flag) {
+            throw std::runtime_error("Verification Failed on ZKSP_test");
+        }                
+
         auto end_2 = chrono::steady_clock::now();
         elaps = duration_cast<microseconds>(end_2-start_2);
         fout2<< elaps.count()<< ", ";
@@ -216,6 +231,7 @@ void ZKSP_test(){
 }
 
 void zkIPP_test(const std::string& file_name){
+    cout << "<<< ZKIPP TEST START >>>" << endl;
 
     vector<G2> gg;
     vector<G1> ww;
@@ -260,6 +276,10 @@ void zkIPP_test(const std::string& file_name){
 
         bool flag = zkIPPverify(ipp_pi);
 
+        if (~flag) {
+            throw std::runtime_error("Verification Failed on ZKIPP_test");
+        }                
+
         auto end_2 = chrono::steady_clock::now();
 
         elaps = duration_cast<microseconds>(end_2-start_2);
@@ -275,6 +295,7 @@ void zkIPP_test(const std::string& file_name){
 }
 
 void setuptest(const std::string& file_name){
+    cout << "<<< SETUP TEST START >>>" << endl;
 
     std::ofstream fout1(file_name, std::ios::app);
     microseconds elaps;

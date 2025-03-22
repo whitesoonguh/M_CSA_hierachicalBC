@@ -362,6 +362,14 @@ struct zkbpacc_setup {
 
         }
     }
+
+    void setup_from_pcs(PCS& pcs) {
+        g1si = &pcs.pp.g1si[0];
+        g2si = &pcs.pp.g2si[0];
+        hashAndMapToG1(Frakg,"Frakg");
+        hashAndMapToG1(Frakh,"Frakh");
+        hashAndMapToG2(h2,"h2");
+    }
 };
 
 struct zkbpacc_setup_pcs {
@@ -792,12 +800,11 @@ bool ZKMP_verify(ZKMP pi){
 
     GT R_3o=pi.msg.R_3*(R_3_1o/R_3_2o);
 
-    bool flag = false;
-    flag = (pi.msg.R_1 == R_1p);
-    flag = (pi.msg.R_2 == R_2p);
-    flag = (R_3o==R_3p);
+    bool flag1 = (pi.msg.R_1 == R_1p);
+    bool flag2 = (pi.msg.R_2 == R_2p);
+    bool flag3 = (R_3o==R_3p);
 
-    return flag;
+    return flag1 && flag2 && flag3;
 };
 
 struct ZKNMP {
