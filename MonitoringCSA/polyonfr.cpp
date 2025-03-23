@@ -374,8 +374,7 @@ tuple<FrVec,FrVec,FrVec> xGCD(FrVec a, FrVec b)
         FrVec t=get<1>(out);
         FrVec gcd=get<2>(out);
 
-        return tuple<FrVec,FrVec,FrVec>(s,t,gcd);
-
+        return make_tuple(s,t,gcd);
     }
 
     FrVec r=a; FrVec r_n=b;
@@ -404,23 +403,26 @@ tuple<FrVec,FrVec,FrVec> xGCD(FrVec a, FrVec b)
 
         r=r_n;
         r_n=get<1>(qr);
-
     }
 
     s=s_o;
     t=t_o;
     
-    // s=PolyLongDiv(s_o,r);
-    // t=PolyLongDiv(t_o,r);
-    // r=PolyLongDiv(r,r);
+    // Ensure gcd is monic (leading coefficient = 1)
+    FrVec leadingCoeff = {r[0]};  // Assuming r[0] is the leading coefficient
+    if (leadingCoeff[0] != 1) {  
+        s = get<0>(PolyDiv(s, leadingCoeff));
+        t = get<0>(PolyDiv(t, leadingCoeff));
+        r = get<0>(PolyDiv(r, leadingCoeff));
+    }
 
-    s=PolyCondense(s);
-    t=PolyCondense(t);
-    r=PolyCondense(r);
+    s = PolyCondense(s);
+    t = PolyCondense(t);
+    r = PolyCondense(r);
 
-    return FrvT_3(s,t,r);
-    
+    return make_tuple(s,t,r);
 }
+
 
 FrVec Polytree_n(FrVec a) {
 

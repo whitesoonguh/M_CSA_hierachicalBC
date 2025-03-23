@@ -8,6 +8,7 @@
 #include <cmath>
 #include <vector>
 #include <malloc.h>
+#include <algorithm>
 #include "primitiveroots.hpp"
 #include "ntt.hpp"
 #include "polyonfr.hpp"
@@ -65,5 +66,24 @@ bool ZKNMP_verify(ZKNMP pi);
 struct ZKSP;
 
 bool ZKSP_verify(ZKSP pi);
+
+G1 memWitGen(
+    PCS pcs,
+    FrVec S,
+    Fr n
+);
+
+tuple<G1, G1> nonMemWitGen(
+    PCS pcs,
+    FrVec S,
+    Fr n    
+);
+
+struct OwnPf;
+bool OwnPf_verify(OwnPf pi);
+
+struct NonOwnPf;
+bool NonOwnPf_verify(NonOwnPf pi);
+
 
 #endif

@@ -5,6 +5,7 @@
 #include <cmath>
 #include <vector>
 #include "polyonfr.hpp"
+#include <chrono>
 
 using namespace mcl;
 using namespace mcl::bn;
@@ -23,13 +24,34 @@ typedef struct _ZKMPProof {
 } ZKMPProof;
 
 typedef struct _ZKNMPProof {
-
+    G1 P1; G1 P2; G1 Q1; G1 Q2;
+    G1 R1; G1 R2; G1 R3; G1 R4; GT R5;
+    Fr s_rI; Fr s_rA; FrVec s_ti; FrVec s_di;
 } ZKNMPProof;
 
 typedef struct _ZKSProof {
-
+    G1 P1; G1 P2; G1 P3; G1 P4;
+    G1 R1; G1 R2; G1 R3; G1 R4;
+    GT R5; GT R6; GT R7;
+    Fr s_rI; Fr s_rJ; Fr s_rA;
+    FrVec s_ti; FrVec s_di;
 } ZKSProof;
 
 // Functions
+ZKMPProof ZKMP_prove(
+    HACCParams pp,
+    G2 C_I,
+    G2 C_A,
+    G1 W_I,
+    Fr r_I,
+    Fr r_A
+);
+
+bool ZKMP_verify(
+    HACCParams pp,
+    ZKMPProof proof,
+    G2 C_I,
+    G2 C_A
+);
 
 #endif

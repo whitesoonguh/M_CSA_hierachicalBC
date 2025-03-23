@@ -1,5 +1,4 @@
 #include "core.h"
-#define DEBUG
 
 // Hidden ACC
 HACCParams HACC_Setup (
@@ -12,8 +11,8 @@ HACCParams HACC_Setup (
     // Select base points
     G1 g1, gfrak, hfrak; G2 g2, h2;
     hashAndMapToG1(g1,"g1");
-    hashAndMapToG1(g1,"gfrak");
-    hashAndMapToG1(g1,"hfrak");
+    hashAndMapToG1(gfrak,"gfrak");
+    hashAndMapToG1(hfrak,"hfrak");
     hashAndMapToG2(g2,"g2");
     hashAndMapToG2(h2,"h2");    
 
@@ -58,25 +57,27 @@ G1 HACC_MemWitGen(
     std::vector<Fr> I
 ) {
     std::vector<Fr> div = PolyLongDiv(A, I);
-
-    #ifdef DEBUG
-    cout << "[DEBUG] PolyLongDivision Result" << endl;
-    for (uint32_t i = 0; i < div.size(); i++) {
-        cout << div[i].getStr() << " ";
-    }
-    cout << endl;
-    #endif
     return HACC_commitCoeffsG1(pp, div);
 }
 
-// G2 HACC_NonMemWitGen(
-//     HACCParams pp, 
-//     std::vector<Fr> A,
-//     std::vector<Fr> I
-// ) {
+tuple<G1, G1> HACC_NonMemWitGen(
+    HACCParams pp, 
+    std::vector<Fr> A,
+    std::vector<Fr> I
+) {
+    FrvT_3 ret = xGCD(A, I);
+    FrVec alpha = get<0>(ret);
+    FrVec beta =  get<1>(ret);
+    FrVec gcd =  get<2>(ret);
 
-// }
+    if (!IsPolyEqual(gcd, FrVec({1}))) {
+        throw std::runtime_error("GCD is NOT 1...");
+    }  
 
+    G1 w_A = HACC_commitCoeffsG1(pp, alpha);
+    G1 w_I = HACC_commitCoeffsG1(pp, beta);
+    return tuple<G1, G1>(w_A, w_I);
+}
 
 // ZKMP
 ZKMPProof ZKMP_prove(
@@ -99,17 +100,16 @@ ZKMPProof ZKMP_prove(
     Fr d_2 = r_I * t_2;
 
     // Comms
-    G1 _op1, _op2;
-    G1::mul(_op1, pp.g1, t_1); G1::mul(_op2, pp.gfrak, t_2); G1 P1; G1::add(P1, _op1, _op2);
-    G1::mul(_op2, pp.gfrak, t_1); G1 P2 = W_I + _op2;
-    G1::mul(_op1, pp.g1, r_t1); G1::mul(_op2, pp.gfrak, r_t2); G1 R1; G1::add(R1, _op1, _op2);
-    G1::mul(_op1, P1, r_rI); G1::mul(_op2, pp.g1, -r_d1); _op1 = _op1 + _op2;
-    G1::mul(_op2, pp.gfrak, -r_d2); G1 R2 = _op1 + _op2;
+    G1 P1 = pp.g1 * t_1 + pp.gfrak * t_2;
+    G1 R1 = pp.g1 * r_t1 + pp.gfrak * r_t2;
+    G1 P2 = W_I + pp.gfrak * t_1;
+    G1 R2 = P1 * r_rI + pp.g1 * (-r_d1) + pp.gfrak * (-r_d2);
 
     // Compute R3
     G2 _op3, _op4;
-    G2::mul(_op3, C_I, r_t1); G2::mul(_op4, pp.h2, r_d1); G2 first = _op3 + _op4;
-    G1::mul(_op1, P2, r_rI); G1::mul(_op2, pp.g1, r_rA); G1 second = _op1 + _op2;
+    G2 first = C_I * r_t1 + pp.h2 * (-r_d1);
+    G1 second = P2 * r_rI + pp.g1 * (-r_rA);
+
     G1 leftMP[2] = {pp.gfrak, second};
     G2 rightMP[2] = {first, pp.h2};
     GT R3;
@@ -120,12 +120,6 @@ ZKMPProof ZKMP_prove(
     string buf = P1.getStr() + P2.getStr()+ R1.getStr() + R2.getStr() + R3.getStr();
     Fr c;
     c.setHashOf(buf);
-
-    #ifdef DEBUG
-    cout << "[DEBUG] Challenge from Prover" << endl;
-    cout << c.getStr() << endl;    
-    #endif    
-    
 
     // Compute S Values
     Fr s_rI = r_rI + c * r_I;
@@ -155,24 +149,12 @@ bool ZKMP_verify(
     Fr c;
     c.setHashOf(buf);
 
-    #ifdef DEBUG
-    cout << "[DEBUG] Challenge from Verifier" << endl;
-    cout << c.getStr() << endl;    
-    #endif
-
     // Useful Vector
-    
-    
-
     G1 base[3] = {proof.P1, pp.g1, pp.gfrak};
     // Check R1
-    G1 _op1, _op2;
-    G1::mul(_op1, proof.P1, -c); G1::mul(_op2, pp.g1, proof.s_t1); G1::add(_op1, _op1, _op2);
-    G1::mul(_op2, pp.gfrak, proof.s_t2); G1 right1; G1::add(right1, _op1, _op2);
-
-    // G1 right1;
-    // Fr expon1[3] = {-c, proof.s_t1, proof.s_t2};
-    // G1::mulVec(right1, base, expon1, 3);
+    G1 right1;
+    Fr expon1[3] = {-c, proof.s_t1, proof.s_t2};
+    G1::mulVec(right1, base, expon1, 3);
     bool check1 = (proof.R1 == right1);
 
     // Check R2
@@ -197,37 +179,12 @@ bool ZKMP_verify(
     finalExp(right3,right3);
     bool check3 = (proof.R3 == right3);
 
-    // Done!
-    #ifdef DEBUG
-    cout << "[DEBUG] Checks for Verification" << endl;
-    cout << "Check 1: " << check1 << endl;
-    cout << "Values for Check 1: " << endl;
-    cout << proof.R1.getStr() << endl;
-    cout << " vs " << endl;
-    cout << right1.getStr() << endl;
-    cout << "Check 2: " << check2 << endl;
-    cout << "Check 3: " << check3 << endl;
-    #endif
-
     return check1 && check2 && check3;
 }
 
-// ZKNMP
-// ZKNMPProof ZKNMP_prove(
-
-// ) {
-
-// }
-
-// bool ZKNMP_verify(
-//     HACCParams pp,
-//     ZKMPProof proof
-// ) {
-
-// }
-
-
 int main() {
+
+
     initPairing(mcl::BLS12_381);
 
     // Setup
@@ -243,9 +200,30 @@ int main() {
     G2 C_A = HACC_commitCoeffsG2(pp, A) + pp.h2 * r_A;    
     G1 W_I = HACC_MemWitGen(pp, A, I);
 
-    // Proof
-    ZKMPProof proof = ZKMP_prove(pp, C_I, C_A, W_I, r_I, r_A);
+    double PTtot = 0;
+    double VTtot = 0;
 
-    // Verify 
-    bool ret = ZKMP_verify(pp, proof, C_I, C_A);
+    for (int i = 0; i < 1000; i++) {
+        // Proof
+        auto t1p = chrono::steady_clock::now();
+        ZKMPProof proof = ZKMP_prove(pp, C_I, C_A, W_I, r_I, r_A);
+        auto t2p = chrono::steady_clock::now();
+        double PT = chrono::duration_cast<chrono::microseconds>(t2p-t1p).count();
+
+        // Verify 
+        auto t1v = chrono::high_resolution_clock::now();
+        bool ret = ZKMP_verify(pp, proof, C_I, C_A);
+        auto t2v = chrono::high_resolution_clock::now();
+        double VT = chrono::duration_cast<chrono::microseconds>(t2v-t1v).count();
+
+        if (ret == 0) {
+            throw std::runtime_error("Verification Failed...");
+        }
+
+        PTtot += PT;
+        VTtot += VT;
+    }
+
+    cout << "Prover Time (ms): " << PTtot / 1000 / 1000 << endl;
+    cout << "Verifier Time (ms): " << VTtot / 1000 / 1000 << endl;
 }

@@ -52,7 +52,7 @@ void ZKMP_test(){
     microseconds total_v(0);
     microseconds elaps;
 
-    for(uint32_t i=0;i<10000;i++){
+    for(uint32_t i=0;i<1000;i++){
 
         auto start_1 = chrono::steady_clock::now();
 
@@ -67,7 +67,7 @@ void ZKMP_test(){
 
         bool flag = ZKMP_verify(zkmp);
 
-        if (~flag) {
+        if (flag == 0) {
             throw std::runtime_error("Verification Failed on ZKMP_test");
         }
 
@@ -78,8 +78,8 @@ void ZKMP_test(){
 
     }
 
-    std::cout << "ZKMP_prove = : " << total_p.count()/10000 << "(ms)"<<std::endl;
-    std::cout << "ZKMP_verifiy = : " << total_v.count()/10000 << "(ms)"<<std::endl;
+    std::cout << "ZKMP_prove = : " << total_p.count()/1000 << "(μs)"<<std::endl;
+    std::cout << "ZKMP_verifiy = : " << total_v.count()/1000 << "(μs)"<<std::endl;
 
 }
 
@@ -91,26 +91,26 @@ void ZKNMP_test(){
     fout1.open("ZKNMP_p.txt");
     fout2.open("ZKNMP_v.txt");
 
-    FrVec poly1 = {6, 11, 6, 1};
-    FrVec poly2 = {1, 4};
+    FrVec polyA = {6, 11, 6, 1};
+    FrVec polyI = {4, 1};
 
-    FrvT_3 out=xGCD(poly1, poly2);
+    FrvT_3 out=xGCD(polyA, polyI);
 
     FrVec alpha = get<0>(out);
     FrVec beta = get<1>(out);
     FrVec gcd = get<2>(out);
-
     PCS pcs1;
     pcs1.setup(8);
 
     zkbpacc_setup setup1;
     setup1.setup_from_pcs(pcs1);    
 
-    G1 pi_1 = pcs1.commit_G1(alpha);
-    G1 pi_2 = pcs1.commit_G1(beta);
+    G1 w_A = pcs1.commit_G1(alpha);
+    G1 w_I = pcs1.commit_G1(beta);
 
-    G2 C_A = pcs1.commit(poly1);
-    G2 C_I = pcs1.commit(poly2);
+    G2 C_I = pcs1.commit(polyI);
+    G2 C_A = pcs1.commit(polyA);
+
     Fr r_I;
     r_I.setByCSPRNG();
     Fr r_A;
@@ -124,11 +124,11 @@ void ZKNMP_test(){
     microseconds total_v(0);
     microseconds elaps;
 
-    for(uint32_t i=0;i<10000;i++){
+    for(uint32_t i=0;i<1000;i++){
 
         auto start_1 = chrono::steady_clock::now();
 
-        nmp.prove(C_I, C_A, pi_1, pi_2, r_I, r_A);
+        nmp.prove(C_I, C_A, w_I, w_A, r_I, r_A);
 
         auto end_1 = chrono::steady_clock::now();
         elaps = duration_cast<microseconds>(end_1-start_1);
@@ -139,7 +139,7 @@ void ZKNMP_test(){
 
         bool flag = ZKNMP_verify(nmp);
 
-        if (~flag) {
+        if (flag == 0) {
             throw std::runtime_error("Verification Failed on ZKNMP_test");
         }        
 
@@ -150,8 +150,8 @@ void ZKNMP_test(){
 
     }
 
-    std::cout << "ZKNMP_prove = : " << total_p.count()/10000 << "(ms)"<<std::endl;
-    std::cout << "ZKNMP_verifiy = : " << total_v.count()/10000 << "(ms)"<<std::endl;
+    std::cout << "ZKNMP_prove = : " << total_p.count()/1000 << "(μs)"<<std::endl;
+    std::cout << "ZKNMP_verifiy = : " << total_v.count()/1000 << "(μs)"<<std::endl;
 
 }
 
@@ -165,15 +165,14 @@ void ZKSP_test(){
     fout1.open("ZKSP_p.txt");
     fout2.open("ZKSP_v.txt");
 
-    zkbpacc_setup setup2;
-    setup2.init(8);
-
     FrVec Ax = {24, -50, 35, -10, 1};
     FrVec Ix = {2, -3, 1};
     FrVec Jx = {12, -7, 1};
 
     PCS pcs2;
     pcs2.setup(8);
+    zkbpacc_setup setup2;
+    setup2.setup_from_pcs(pcs2);    
 
     G2 C_A = pcs2.commit(Ax);
     G2 C_I = pcs2.commit(Ix);
@@ -199,7 +198,7 @@ void ZKSP_test(){
     microseconds total_v(0);
     microseconds elaps;
 
-    for(uint32_t i=0;i<10000;i++){
+    for(uint32_t i=0;i<1000;i++){
 
         auto start_1 = chrono::steady_clock::now();
 
@@ -214,7 +213,7 @@ void ZKSP_test(){
 
         bool flag = ZKSP_verify(pi3);
 
-        if (~flag) {
+        if (flag == 0) {
             throw std::runtime_error("Verification Failed on ZKSP_test");
         }                
 
@@ -225,8 +224,8 @@ void ZKSP_test(){
 
     }
 
-    std::cout << "ZKSP_prove = : " << total_p.count()/10000 << "(ms)"<<std::endl;
-    std::cout << "ZKSP_verifiy = : " << total_v.count()/10000 << "(ms)"<<std::endl;
+    std::cout << "ZKSP_prove = : " << total_p.count()/1000 << "(μs)"<<std::endl;
+    std::cout << "ZKSP_verifiy = : " << total_v.count()/1000 << "(μs)"<<std::endl;
 
 }
 
@@ -276,7 +275,7 @@ void zkIPP_test(const std::string& file_name){
 
         bool flag = zkIPPverify(ipp_pi);
 
-        if (~flag) {
+        if (flag == 0) {
             throw std::runtime_error("Verification Failed on ZKIPP_test");
         }                
 
@@ -387,19 +386,133 @@ void setuptest(const std::string& file_name){
 
         }
     
+}
+
+#define PCS_BASE_LENGTH ( 2500 )
+#define SET_SIZE 2500
+
+
+void OwnPf_test() {
+    cout << "<<< OwnPf TEST START >>>" << endl;
+
+    // Initialize Stuffs
+    PCS pcs;
+    pcs.setup(PCS_BASE_LENGTH);
+    zkbpacc_setup setup; setup.setup_from_pcs(pcs);
+    ZKMP zkmp(setup);
+    PoK2_G2 pipok(setup);
+    OwnPf proof = {setup,zkmp,pipok};
+
+    // Initialize Inputs 
+    FrVec A(SET_SIZE);
+    for (int i = 0; i < SET_SIZE; i++) {
+        A[i] = Fr(i + 2);
+    }    
+    FrVec APoly = constructMemPoly(A);
+
+    Fr n = 2; Fr id = 424242; FrVec idPoly = {id, 1};
+    G2 C_id = pcs.commit(idPoly);
+    G2 C_A = pcs.commit(APoly);
+    Fr r, delta;
+    r.setByCSPRNG();
+    delta.setByCSPRNG();
+    C_id = C_id + setup.h2 * r;
+    C_A = C_A + setup.h2 * delta;
+
+    microseconds total_p(0);
+    microseconds total_v(0);
+    microseconds elaps;
+
+    for (int i = 0; i < 1000; i++) {
+        auto start_1 = chrono::steady_clock::now();
+        proof.prove(C_id, C_A, n, A, id, r, delta);
+        auto end_1 = chrono::steady_clock::now();
+        elaps = duration_cast<microseconds>(end_1-start_1);
+        total_p = total_p+elaps;
+
+        auto start_2 = chrono::steady_clock::now();
+
+        bool flag = OwnPf_verify(proof);
+
+        if (flag == 0) {
+            throw std::runtime_error("OwnPf Verification Failed.");
+        }        
+
+        auto end_2 = chrono::steady_clock::now();
+        elaps = duration_cast<microseconds>(end_2-start_2);
+        total_v = total_v+elaps;        
+    }
+
+    std::cout << "OwnPf_prove = : " << total_p.count()/1000 << "(μs)"<<std::endl;
+    std::cout << "OwnPf_verifiy = : " << total_v.count()/1000 << "(μs)"<<std::endl;
 
 }
 
+
+void NonOwnPf_test() {
+    cout << "<<< NonOwnPf TEST START >>>" << endl;
+    // Initialize Stuffs
+    PCS pcs;
+    pcs.setup(PCS_BASE_LENGTH);
+    zkbpacc_setup setup; setup.setup_from_pcs(pcs);
+    ZKNMP zknmp(setup);
+    PoK2_G2 pipok(setup);
+    NonOwnPf proof = {setup,zknmp,pipok};
+
+    // Initialize Inputs 
+    FrVec A(SET_SIZE);
+    for (int i = 0; i < SET_SIZE; i++) {
+        A[i] = Fr(i + 2);
+    }    
+    FrVec APoly = constructMemPoly(A);
+
+    Fr n = 1; Fr id = 424242; FrVec idPoly = {id, 1};
+    G2 C_id = pcs.commit(idPoly);
+    G2 C_A = pcs.commit(APoly);
+    Fr r, delta;
+    r.setByCSPRNG();
+    delta.setByCSPRNG();
+    C_id = C_id + setup.h2 * r;
+    C_A = C_A + setup.h2 * delta;
+
+    microseconds total_p(0);
+    microseconds total_v(0);
+    microseconds elaps;
+
+    for (int i = 0; i < 1000; i++) {
+        auto start_1 = chrono::steady_clock::now();
+        proof.prove(C_id, C_A, n, A, id, r, delta);
+        auto end_1 = chrono::steady_clock::now();
+        elaps = duration_cast<microseconds>(end_1-start_1);
+        total_p = total_p+elaps;
+
+        auto start_2 = chrono::steady_clock::now();
+
+        bool flag = NonOwnPf_verify(proof);
+
+        if (flag == 0) {
+            throw std::runtime_error("NonOwnPf Verification Failed.");
+        }        
+
+        auto end_2 = chrono::steady_clock::now();
+        elaps = duration_cast<microseconds>(end_2-start_2);
+        total_v = total_v+elaps;        
+    }
+
+    std::cout << "NonOwnPf_prove = : " << total_p.count()/1000 << "(μs)"<<std::endl;
+    std::cout << "NonOwnPf_verifiy = : " << total_v.count()/1000 << "(μs)"<<std::endl;
+    
+}
+
+
 int main(){
-
     initPairing(mcl::BLS12_381);
-
-    ZKMP_test();
-    ZKSP_test();
-    ZKNMP_test();
-    zkIPP_test("file_name.csv");
-    setuptest("setup_new.csv");
-
-
+    // ZKMP_test();
+    // ZKSP_test();
+    // ZKNMP_test();
+    OwnPf_test();
+    NonOwnPf_test();
+    // zkIPP_test("file_name.csv");
+    // setuptest("setup_new.csv");
     return 0;
 }
