@@ -6,17 +6,17 @@ Monitoring the Supply Chain of Controlled Substances with Privacy-Preserving Hie
 
 This code uses MITSUNARI Shigeo's MCL for elliptic curve gruop operations. You can clone it by following commands:
 
-```
-install [herumi/mcl](https://github.com/herumi/mcl)
 
-    git clone https://github.com/herumi/mcl;
-    cd mcl;
-    make -j4;
-    
-    mkdir build
-    cd build
-    cmake ..
-    make
+###### install [herumi/mcl](https://github.com/herumi/mcl)
+```
+git clone https://github.com/herumi/mcl;
+cd mcl;
+make -j4;
+
+mkdir build
+cd build
+cmake ..
+make
 ```
 
 Make sure that the `MCL` library path is well recognized by the program. You can add the path by setting the `LD_LIBRARY_PATH` as the following command line:
