@@ -47,6 +47,6 @@ The `test.cpp` contains the following test codes:
     - SetupTest: Measuing setup time for preparing the parameter of accumulator (by the global manager)
     - TxGenTest: (Entry/Transfer/Exit) Transaction proof generation.
     - TxVrfyTest: (Entry/Transfer/Exit) Transaction verification.
-    - TxAggTest(): Summary Transaction proof generation and verification.
+    - TxAggTest: Summary Transaction proof generation and verification.
     
 #### Enjoy!
