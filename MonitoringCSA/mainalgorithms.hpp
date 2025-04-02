@@ -79,11 +79,26 @@ tuple<G1, G1> nonMemWitGen(
     Fr n    
 );
 
+bool PoK_proof_g2_n_verify(PoK_proof_g2_n pi);
+
 struct OwnPf;
 bool OwnPf_verify(OwnPf pi);
 
 struct NonOwnPf;
 bool NonOwnPf_verify(NonOwnPf pi);
 
+FrVec constructMemPolyBatch (
+    FrVec M,
+    FrVec N
+);
+
+FrVec constructMemPolyBatchSorted (
+    FrVec M,
+    FrVec N
+);
+
+cachedAggAwResult cachedAggAWPolyGen(
+    FrVec ID
+);
 
 #endif

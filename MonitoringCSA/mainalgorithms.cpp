@@ -55,8 +55,8 @@ struct PCS{
     struct pp{
         vector<G1> g1si;
         vector<G2> g2si;
-        // vector<G1> h1si;
-        // vector<G2> h2si;
+        vector<G1> h1si;
+        vector<G2> h2si;
     } pp;
     Fr s;
 
@@ -67,36 +67,36 @@ struct PCS{
 
         G1 g1;
         G2 g2;
-        // G1 h1;
-        // G2 h2;
+        G1 h1;
+        G2 h2;
         hashAndMapToG1(g1,"g1");
         hashAndMapToG2(g2,"g2");
-        // hashAndMapToG1(h1,"h1");
-        // hashAndMapToG2(h2,"h2");
+        hashAndMapToG1(h1,"h1");
+        hashAndMapToG2(h2,"h2");
 
         vector<G1> g1si(D+1);
         vector<G2> g2si(D+1);
-        // vector<G1> h1si(D+1);
-        // vector<G2> h2si(D+1);
+        vector<G1> h1si(D+1);
+        vector<G2> h2si(D+1);
 
         g1si[0]=g1;
         g2si[0]=g2;
-        // h1si[0]=h1;
-        // h2si[0]=h2;
+        h1si[0]=h1;
+        h2si[0]=h2;
     
         for(int i=1;i<=D;i++){
         
             g1si[i]=g1si[i-1]*s;
             g2si[i]=g2si[i-1]*s;
-            // h1si[i]=h1si[i-1]*s;
-            // h2si[i]=h2si[i-1]*s;
+            h1si[i]=h1si[i-1]*s;
+            h2si[i]=h2si[i-1]*s;
 
         }
 
         this->pp.g1si=g1si;
         this->pp.g2si=g2si;
-        // this->pp.h1si=h1si;
-        // this->pp.h2si=h2si;
+        this->pp.h1si=h1si;
+        this->pp.h2si=h2si;
 
     }
 
@@ -128,23 +128,23 @@ struct PCS{
         return res;
     }
 
-    // G1 commit_h1(FrVec p){
+    G1 commit_h1(FrVec p){
 
-    //     G1 tmp;
-    //     G1 res;
-    //     res.clear();
-    //     G1::mulVec(res, &pp.h1si[0], &p[0], p.size());
-    //     return res;
-    // }
+        G1 tmp;
+        G1 res;
+        res.clear();
+        G1::mulVec(res, &pp.h1si[0], &p[0], p.size());
+        return res;
+    }
 
-    // G2 commit_h2(FrVec p){
+    G2 commit_h2(FrVec p){
 
-    //     G2 tmp;
-    //     G2 res;
-    //     res.clear();
-    //     G2::mulVec(res, &pp.h2si[0], &p[0], p.size());
-    //     return res;
-    // }
+        G2 tmp;
+        G2 res;
+        res.clear();
+        G2::mulVec(res, &pp.h2si[0], &p[0], p.size());
+        return res;
+    }
 
 
 
@@ -457,7 +457,7 @@ GT MultiPairing(vector<G1> a, vector<G2> b){
     return c;
 }
 
-struct IPPproof{
+struct IPPproof {
 
         vector<G2> gg;
         GT P;
@@ -481,122 +481,80 @@ struct IPPproof{
                 throw runtime_error("gg and ww need to be power of two");
             }
 
-            if(ww.size()==1){
-                this->w = ww[0];
-                this->g = gg[0];
-                
-            }else{
+            uint32_t n = ww.size();
+            GT l, r, Lx, Rinvx, P_hat;
+            Fr c; string buf;
 
-                vector<G2> gg_L(gg.begin(), gg.begin()+gg.size()/2);
-                vector<G2> gg_R(gg.begin()+gg.size()/2, gg.end());
-                
-                vector<G1> ww_L(ww.begin(), ww.begin()+ww.size()/2);
-                vector<G1> ww_R(ww.begin()+ww.size()/2, ww.end());
-                
-                G2* pt1=&gg_L[0];
+            while (n > 1) {
+                n>>=1;
+                millerLoopVec(l, &ww[n], &gg[0], n); millerLoopVec(r, &ww[0], &gg[n], n);
+                finalExp(l, l); finalExp(r, r);
+                L.push_back(l); R.push_back(r);
 
-                GT l = MultiPairing(ww_R,gg_L);
-                GT r = MultiPairing(ww_L,gg_R);
-
-                L.insert(L.begin(),l);
-                R.insert(R.begin(),r);
-
-                string buf = this->P.getStr()+l.getStr()+r.getStr();
-                Fr c;
+                buf = this->P.getStr()+l.getStr()+r.getStr();
                 c.setHashOf(buf);
+                x.push_back(c);
 
-                x.insert(x.begin(),1/c);
-                vector<G1> ww_hat(ww.size()/2);
-                vector<G2> gg_hat(gg.size()/2);
-
-                
-                for(uint32_t i=0;i<ww_R.size();i++){
-
-                    ww_hat[i]=ww_L[i]+(ww_R[i]*(c));
-                    gg_hat[i]=gg_L[i]+(gg_R[i]*(1/c));
-                    
+                for (uint32_t i = 0; i < n; i++) {
+                    ww[i]=ww[i]+(ww[i + n]*(c));
+                    gg[i]=gg[i]+(gg[i + n]*(1/c));                
                 }
-                
-                GT Lx;
-                GT::pow(Lx,l,c);
-                GT Rinvx;
-                GT::pow(Rinvx,r,(1/c));
-
-                GT P_hat=Lx*P*Rinvx;
-
-                Prove(gg_hat,P_hat,ww_hat);
-                
             }
-        }   
+
+            this->w = ww[0];
+            this->g = gg[0];
+
+        }
 };
 
 bool IPPverify(IPPproof pi){
+    
+    uint32_t lgn = pi.L.size();
+    FrVec x_vec;
 
-    uint32_t l = pi.L.size();
-    FrVec x;
-
-    GT P_v=pi.P;
-    GT Lx;
-    GT Rxinv;
-
-    for(uint32_t i=0;i<l;i++){
+    // Compute Left
+    FrVec expon;
+    vector<GT> base;
+    GT P_v;
+    
+    for(uint32_t i=0;i<lgn;i++){
         string buf = pi.P.getStr()+pi.L[i].getStr()+pi.R[i].getStr();
         Fr c;
         c.setHashOf(buf);
-        x.push_back(1/c);
-        GT::pow(Lx,pi.L[i],c);
-        GT::pow(Rxinv,pi.R[i],1/c);
-        P_v=Lx*P_v*Rxinv;
+        expon.push_back(c);
+        expon.push_back(1/c);
+        x_vec.push_back(1/c);
+        base.push_back(pi.L[i]);
+        base.push_back(pi.R[i]);
     }
-
-    uint32_t n=pi.gg.size();
-    uint32_t n_l=nextPowOf2(log2(n));
-    vector<FrVec> M(n_l, FrVec((n>>1)+1,0));
-    for(uint32_t i=0;i<n_l;i++){
-        if(i<log2(n)){
-            uint32_t j=1<<(i);
-            M[i][0]= 1;
-            M[i][j]= x[i];
-        }else{
-            M[i].resize(1);
-            M[i][0]=1;
-        }
-    }
-
-    FrVec u;
-    FrVec v;
-    int64_t index;
-    index=0;
-    uint8_t tmp=log2(n_l);
-    for(uint8_t i=1;i<=tmp;i++){
-        uint32_t L = (1<<(tmp-i));
-        vector<FrVec> m(L, FrVec((n>>1)+1,0));
-        for(uint64_t j=0;j<L;j++){
-            u=M[index];
-            index++;
-            v=M[index];
-            index++;
-            m[j]=PolyMul(u,v);
-        }
-        index = 0;
-        M=m;
-
-    }
-
-    G2* ptgg=&pi.gg[0];
-    Fr* ptM=&M[0][0];
-
+        
+    GT::powVec(P_v, &base[0], &expon[0], 2*lgn);
+    P_v = P_v * pi.P;
+        
+    // Compute Right
+    Fr one = Fr(1);
     
+    uint32_t n = pi.gg.size();
+    expon.clear();
+    expon.push_back(one);
+       
+    // Prepare Indices 
+    for (uint32_t i = 1; i < n; i++) {
+        uint32_t lgi = (int)(log2(i));
+        uint32_t k = 1<<lgi;
+        Fr u = x_vec[lgn - lgi - 1];                
+        expon.push_back(expon[i-k] * u);        
+    }
+    
+    // Do MSM & Pairing
     G2 g_v;
-    G2::mulVec(g_v,ptgg,ptM,pi.gg.size());
-
+    G2::mulVec(g_v, &pi.gg[0], &expon[0], n);
     GT res;
-    pairing(res,pi.w,g_v);
+    pairing(res, pi.w, g_v);
 
+    // Check Left == Right
     bool flag=(P_v==res);
-
     return flag;
-
 }
 
 struct zkIPPproof{
@@ -617,7 +575,9 @@ struct zkIPPproof{
             vv[i]=v_i;
 
         }
-        this->Q=MultiPairing(vv,gg);
+
+        millerLoopVec(Q, &vv[0], &gg[0], gg.size());
+        finalExp(Q, Q);
         Fr chal;
         chal.setHashOf(Q.getStr());
         vector<G1> uu(ww.size());
@@ -651,7 +611,9 @@ IPPproof zkIPPprove(vector<G2> gg, GT P, vector<G1> ww)
             vv[i]=v_i;
 
         }
-        GT Q=MultiPairing(vv,gg);
+        GT Q;
+        millerLoopVec(Q, &vv[0], &gg[0], gg.size());
+        finalExp(Q, Q);
         Fr chal;
         chal.setHashOf(Q.getStr());
         vector<G1> uu(ww.size());
@@ -1223,6 +1185,7 @@ struct PoK_proof_g2{
 
     G2 P;
     G2 R;
+    G2 g2;
     Fr s;
 
     void prove(G2 P, Fr x){
@@ -1232,6 +1195,7 @@ struct PoK_proof_g2{
         tau.setByCSPRNG();
         G2 g2;
         hashAndMapToG2(g2,"g2");
+        this->g2 = g2;
         R = g2*tau;
         Fr c;
         c.setHashOf(R.getStr());
@@ -1242,15 +1206,24 @@ struct PoK_proof_g2{
 
 };
 
+bool PoK_proof_g2_verify(PoK_proof_g2 pi) {
+    Fr c; c.setHashOf(pi.R.getStr());
+    G2 left = pi.g2 * pi.s;
+    G2 right = pi.R + pi.P * c;
+    return (left == right);
+}
+
 struct PoK_proof_g2_n{
 
     G2 P;
     G2 R;
     FrVec ss;
+    vector<G2> gg;
 
     void prove(vector<G2> gg, G2 P, FrVec xx, uint32_t n){
 
         assert(gg.size()==n);
+        this->P = P;
 
         FrVec tau; tau.resize(n);
         for(uint32_t i=0;i<n;i++){
@@ -1260,10 +1233,18 @@ struct PoK_proof_g2_n{
         G2::mulVec(this->R, &gg[0], &tau[0], n);
         Fr c; c.setHashOf(R.getStr());
         this->ss = PolyAdd(tau, PolyMul({c},xx));
-
+        this->gg = gg;
     }
 
 };
+
+bool PoK_proof_g2_n_verify(PoK_proof_g2_n pi) {
+    Fr c; c.setHashOf(pi.R.getStr());
+    G2 left;
+    G2::mulVec(left, &pi.gg[0], &pi.ss[0], pi.ss.size());
+    G2 right = pi.R + pi.P * c;
+    return (left == right);
+}
 
 struct PoK2_G2{
     zkbpacc_setup setup;
@@ -1296,7 +1277,7 @@ bool PoK2_G2_verify (PoK2_G2 pi) {
     Fr c;
     c.setHashOf(buf);
     G2 left = pi.R + pi.C * c;
-    G2 right = pi.setup.g2si[0] * pi.z1 + pi.setup.h2 * pi.z2;
+    G2 right = pi.setup.g2 * pi.z1 + pi.setup.h2 * pi.z2;
     return (left == right);
 }
 
@@ -1307,8 +1288,10 @@ FrVec constructMemPoly(
     FrVec S
 ) {
     uint32_t numElts = S.size();
-
-    if (numElts == 1) {
+    if (numElts == 0) {
+        return {1};
+    }
+    else if (numElts == 1) {
         return {S[0], 1};
     }
     FrVec left(S.begin(), S.begin() + numElts/2);
@@ -1318,6 +1301,86 @@ FrVec constructMemPoly(
     FrVec rightRet = constructMemPoly(right);
     FrVec ret = PolyMul(leftRet, rightRet);
     return ret;
+}
+
+
+
+// It constructs a vector that contains (I(X)/id_i+X) with the membership polynomial
+// Fast but Memory Intensive
+typedef struct _cachedAggAwResult {
+    std::vector<FrVec> Payload;
+    FrVec memPoly;
+} cachedAggAwResult;
+
+cachedAggAwResult cachedAggAWPolyGen(
+    FrVec ID
+) {
+    uint32_t numElts = ID.size();
+    if (numElts == 0) {
+        // Do Nothing
+        return cachedAggAwResult{
+            {{1}}, {1}
+        };
+    }
+    else if (numElts == 1) {
+        return cachedAggAwResult{
+            {{1}}, {ID[0], 1}
+        };
+    }
+    FrVec left(ID.begin(), ID.begin() + numElts/2);
+    FrVec right(ID.begin() + numElts/2, ID.end());
+
+    cachedAggAwResult leftRet = cachedAggAWPolyGen(left);
+    cachedAggAwResult rightRet = cachedAggAWPolyGen(right);
+
+    // Merge
+    std::vector<FrVec> newPayload;
+    FrVec _tmp;
+
+    for (FrVec val : leftRet.Payload) {
+        _tmp = PolyMul(val, rightRet.memPoly);
+        newPayload.push_back(_tmp);
+    }
+
+    for (FrVec val : rightRet.Payload) {
+        _tmp = PolyMul(val, leftRet.memPoly);
+        newPayload.push_back(_tmp);
+    }
+
+    FrVec newMemPoly = PolyMul(leftRet.memPoly, rightRet.memPoly);
+
+    return cachedAggAwResult {
+        newPayload, newMemPoly
+    };
+}
+
+
+FrVec constructMemPolyBatch (
+    FrVec M,
+    FrVec N
+) {
+    // Find Set Difference for sorted vectors
+    FrVec ret;
+    std::sort(M.begin(), M.end());
+    std::sort(N.begin(), N.end());
+    std::set_difference(
+        M.begin(), M.end(), N.begin(), N.end(), 
+        std::back_inserter(ret)
+    );
+    return constructMemPoly(ret);
+}
+
+FrVec constructMemPolyBatchSorted (
+    FrVec M,
+    FrVec N
+) {
+    // Find Set Difference for sorted vectors
+    FrVec ret;
+    std::set_difference(
+        M.begin(), M.end(), N.begin(), N.end(), 
+        std::back_inserter(ret)
+    );
+    return constructMemPoly(ret);
 }
 
 G1 memWitGen(
@@ -1386,6 +1449,8 @@ struct OwnPf {
         piMP.prove(C_I, C_A, w_n, Fr(0), delta);
     }
 };
+
+
 
 bool OwnPf_verify(OwnPf pi) {
     bool flag1 = PoK2_G2_verify(pi.piPoK);

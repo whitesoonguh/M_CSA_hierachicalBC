@@ -12,6 +12,9 @@
 #include "polyonfr.hpp"
 #include "mainalgorithms.hpp"
 #include "PME.hpp"
+#include "TxGen.hpp"
+
+#define SAVE_SUFFIX "./data"
 
 struct output{
         Fr Adr;
@@ -36,7 +39,7 @@ struct Tx_Entry{
 
 Tx_Entry Tx_Entry_Gen(PCS pcs, ZKMP PI_PoA, Fr id, G1 wit, G2 C_A, FrVec SNs, Fr gamma, Fr delta, const string& file_name){
 
-    std::ofstream fout1(file_name, std::ios::app);
+    std::ofstream fout1(SAVE_SUFFIX+file_name, std::ios::app);
 
     microseconds ID_comm(0);
     microseconds Acc_SN(0);
@@ -54,7 +57,7 @@ Tx_Entry Tx_Entry_Gen(PCS pcs, ZKMP PI_PoA, Fr id, G1 wit, G2 C_A, FrVec SNs, Fr
     ID_comm = ID_comm + elaps;
 
     start_1 = chrono::steady_clock::now();
-    G2 A = pcs.commit(Polytree(SNs)) + pcs.pp.h2si[0]*delta;
+    G2 A = pcs.commit(constructMemPoly(SNs)) + pcs.pp.h2si[0]*delta;
     end_1 = chrono::steady_clock::now();
     elaps = duration_cast<microseconds>(end_1-start_1);
     Acc_SN = Acc_SN + elaps;
@@ -131,7 +134,7 @@ struct Tx_Transfer{
 Tx_Transfer Tx_Transfer_Gen(PCS pcs, ZKMP PI_PoA_1, ZKMP PI_PoA_2, ZKSP PI_PoQ, Fr id1, Fr id2, G1 wit1, G1 wit2, G2 C_A, FrVec SNs, FrVec S_1, FrVec S_2, output output_old, 
 Fr gamma, Fr gamma1, Fr gamma2, Fr delta, Fr delta1, Fr delta2, const std::string& file_name, Fr Tid_old){
 
-    std::ofstream fout1(file_name, std::ios::app);
+    std::ofstream fout1(SAVE_SUFFIX+file_name, std::ios::app);
 
     microseconds ID_comm(0);
     microseconds Acc_SN(0);
@@ -150,18 +153,24 @@ Fr gamma, Fr gamma1, Fr gamma2, Fr delta, Fr delta1, Fr delta2, const std::strin
 
     Transfer_input input = {output_old.Adr, output_old.C, output_old.A, PI_PoKE};
     
-    G2 C_1 = pcs.commit(Polytree({id1}));
+    
+
+    G2 C_1 = pcs.commit({id1, 1});
     start_1 = chrono::steady_clock::now();
     C_1 = C_1 + pcs.pp.h2si[0]*gamma1;
     end_1 = chrono::steady_clock::now();
     elaps = duration_cast<microseconds>(end_1-start_1);
     ID_comm = ID_comm + elaps;
 
+    
+    
     start_1 = chrono::steady_clock::now();
-    G2 A_1 = pcs.commit(Polytree(S_1)) + pcs.pp.h2si[0]*delta1;
+    G2 A_1 = pcs.commit(constructMemPoly(S_1)) + pcs.pp.h2si[0]*delta1;
+    
     end_1 = chrono::steady_clock::now();
     elaps = duration_cast<microseconds>(end_1-start_1);
     Acc_SN = Acc_SN + elaps;
+    
 
 
     start_1 = chrono::steady_clock::now();
@@ -184,7 +193,7 @@ Fr gamma, Fr gamma1, Fr gamma2, Fr delta, Fr delta1, Fr delta2, const std::strin
 
     output output1 = {Adr1,C_1,A_1,PI_PoA_1};
 
-    G2 C_2 = pcs.commit(Polytree({id2}));
+    G2 C_2 = pcs.commit({id2, 1});
     start_1 = chrono::steady_clock::now();
     C_2 = C_2 + pcs.pp.h2si[0]*gamma2;
     end_1 = chrono::steady_clock::now();
@@ -192,7 +201,7 @@ Fr gamma, Fr gamma1, Fr gamma2, Fr delta, Fr delta1, Fr delta2, const std::strin
     ID_comm = ID_comm + elaps;
 
     start_1 = chrono::steady_clock::now();
-    G2 A_2 = pcs.commit(Polytree(S_2)) + pcs.pp.h2si[0]*delta2;
+    G2 A_2 = pcs.commit(constructMemPoly(S_2)) + pcs.pp.h2si[0]*delta2;
     end_1 = chrono::steady_clock::now();
     elaps = duration_cast<microseconds>(end_1-start_1);
     Acc_SN = Acc_SN + elaps;
@@ -221,8 +230,11 @@ Fr gamma, Fr gamma1, Fr gamma2, Fr delta, Fr delta1, Fr delta2, const std::strin
     FrVec S;
     S.insert(S.end(),S_1.begin(),S_1.end());
     S.insert(S.end(),S_2.begin(),S_2.end());
-    G1 W_1 = pcs.commit_G1(PolyLongDiv(Polytree(S),Polytree(S_1)));
-    G1 W_2 = pcs.commit_G1(PolyLongDiv(Polytree(S),Polytree(S_2)));
+
+    G1 W_1 = pcs.commit_G1(constructMemPolyBatch(S, S_1));
+    G1 W_2 = pcs.commit_G1(constructMemPolyBatch(S, S_2));
+    // G1 W_1 = pcs.commit_G1(PolyLongDiv(Polytree(S),Polytree(S_1)));
+    // G1 W_2 = pcs.commit_G1(PolyLongDiv(Polytree(S),Polytree(S_2)));
     end_1 = chrono::steady_clock::now();
     elaps = duration_cast<microseconds>(end_1-start_1);
     Acc_SN = Acc_SN + elaps;
@@ -266,7 +278,7 @@ struct Tx_Exit{
 
 Tx_Exit Tx_Exit_Gen(PCS pcs, output output_old, ZKMP PI_PoA, ZKSP PI_PoQ, Fr id, G1 wit, G2 C_A, Fr gamma, Fr gamma1, Fr delta, Fr delta1, FrVec S, FrVec M, FrVec N, const std::string& file_name){
 
-    std::ofstream fout1(file_name, std::ios::app);
+    std::ofstream fout1(SAVE_SUFFIX+file_name, std::ios::app);
 
     microseconds ID_comm(0);
     microseconds Acc_SN(0);
@@ -293,18 +305,24 @@ Tx_Exit Tx_Exit_Gen(PCS pcs, output output_old, ZKMP PI_PoA, ZKSP PI_PoQ, Fr id,
 
     Transfer_input input = {output_old.Adr, C_I, A_I, PI_PoK};
 
-    G2 C_1 = pcs.commit(Polytree({id}));
+    // G2 C_1 = pcs.commit(Polytree({id}));
+    G2 C_1 = pcs.commit({id, 1});
     start_1 = chrono::steady_clock::now();
     C_1 = C_1 + pcs.pp.h2si[0]*gamma1;
     end_1 = chrono::steady_clock::now();
     elaps = duration_cast<microseconds>(end_1-start_1);
     ID_comm = ID_comm + elaps;
 
-    start_1 = chrono::steady_clock::now();
-    G2 A_1 = pcs.commit(Polytree(N)) + pcs.pp.h2si[0]*delta1;
-    G2 A_2 = pcs.commit(Polytree(M));
-    G1 W_1 = pcs.commit_G1(PolyLongDiv(Polytree(S),Polytree(M)));
-    G1 W_2 = pcs.commit_G1(PolyLongDiv(Polytree(S),Polytree(N)));
+    start_1 = chrono::steady_clock::now();    
+    // G2 A_1 = pcs.commit(Polytree(N)) + pcs.pp.h2si[0]*delta1;
+    G2 A_1 = pcs.commit(constructMemPoly(S)) + pcs.pp.h2si[0]*delta1;
+    G2 A_2 = pcs.commit(constructMemPoly(M));
+
+    G1 W_1 = pcs.commit_G1(constructMemPolyBatch(S, M));
+    G1 W_2 = pcs.commit_G1(constructMemPolyBatch(S, N));
+
+    // G1 W_1 = pcs.commit_G1(PolyLongDiv(Polytree(S),Polytree(M)));
+    // G1 W_2 = pcs.commit_G1(PolyLongDiv(Polytree(S),Polytree(N)));
     end_1 = chrono::steady_clock::now();
     elaps = duration_cast<microseconds>(end_1-start_1);
     Acc_SN = Acc_SN + elaps;
@@ -366,7 +384,7 @@ struct Tx_Transfer_out{
 
 Tx_Transfer_out Tx_Transfer_out_Gen(PCS pcs, Fr chainID1, Fr chainID2, Tx_Exit Tx1, Tx_Entry Tx2, Fr gamma, Fr t2, Fr u1, Fr mu1, Fr mu2, const std::string& file_name){
 
-    std::ofstream fout1(file_name, std::ios::app);
+    std::ofstream fout1(SAVE_SUFFIX+file_name, std::ios::app);
 
     microseconds ID_comm(0);
     microseconds Acc_SN(0);
@@ -573,180 +591,49 @@ Tx_Transfer_out Tx_Transfer_out_Gen(PCS pcs, Fr chainID1, Fr chainID2, Tx_Exit T
 
 // }
 
+// int main() {
+//     initPairing(mcl::BLS12_381);
 
+//     FrVec SNs;
+//     for(uint32_t i=0;i<512;i++){
+//         Fr SN;SN.setByCSPRNG();
+//         SNs.push_back(SN);
+//     }
 
-int main(){
+//     std::sort(SNs.begin(), SNs.end());
+
+//     for (auto val: SNs) {
+//         cout << val << endl;
+//     }
     
-    initPairing(mcl::BLS12_381);
 
-    PCS pcs;
-    pcs.setup(2001);
-    zkbpacc_setup setup;
-    setup.init(2001);
-    setup.g1si = &pcs.pp.g1si[0];
-    setup.g2si = &pcs.pp.g2si[0];
+//     auto t1_KH = chrono::high_resolution_clock::now();
+//     for (int i = 0; i < 3; i++) {
+//         auto ret = Polytree(SNs);
+//     }
+//     auto t2_KH = chrono::high_resolution_clock::now();
+//     double diff_KH = chrono::duration<double>(t2_KH-t1_KH).count();
+//     cout << "KH: " << diff_KH << endl;
 
-    ZKMP PI_PoA(setup);
-    FrVec IDset;
-    for(uint32_t i=0;i<10;i++){
-        Fr id;id.setByCSPRNG();
-        IDset.push_back(id);
-    }
-    srand(time(0));
-    uint32_t j = rand()%10;
-    Fr id = IDset[j];
+//     auto t1_SH = chrono::high_resolution_clock::now();
+//     for (int i = 0; i < 3; i++) {
+//         auto ret = constructMemPoly(SNs);
+//     }
+//     auto t2_SH = chrono::high_resolution_clock::now();
+//     double diff_SH = chrono::duration<double>(t2_SH-t1_SH).count();
+//     cout << "SH: " << diff_SH << endl;    
 
-    const std::string& file_name = "EntryTxGen.csv"; 
-    ZKMP PI_PoA1(setup);
-
-    G1 wit = pcs.commit_G1(PolyLongDiv(Polytree(IDset),Polytree({id})));
-    G2 C_A = pcs.commit(Polytree(IDset));
-
-    FrVec SNs;
-    for(uint32_t i=0;i<125;i++){
-        Fr SN;SN.setByCSPRNG();
-        SNs.push_back(SN);
-    }
-
-    FrVec SNs2;
-    for(uint32_t i=0;i<250;i++){
-        Fr SN;SN.setByCSPRNG();
-        SNs2.push_back(SN);
-    }
-
-    FrVec SNs3;
-    for(uint32_t i=0;i<500;i++){
-        Fr SN;SN.setByCSPRNG();
-        SNs3.push_back(SN);
-    }
-
-    FrVec SNs4;
-    for(uint32_t i=0;i<1000;i++){
-        Fr SN;SN.setByCSPRNG();
-        SNs4.push_back(SN);
-    }
-
-    FrVec SNs5;
-    for(uint32_t i=0;i<2000;i++){
-        Fr SN;SN.setByCSPRNG();
-        SNs5.push_back(SN);
-    }
-
-    Fr gamma; gamma.setByCSPRNG();
-    Fr delta; delta.setByCSPRNG();
-
-    // for(uint8_t i=0;i<100;i++){
-    
-    //     Tx_Entry Tx1 = Tx_Entry_Gen(pcs, PI_PoA1, id, wit, C_A, SNs, gamma, delta, "Tx_Entry_625.csv");
-    
-    // }
-
-    // for(uint8_t i=0;i<100;i++){
-
-    //     Tx_Entry Tx2 = Tx_Entry_Gen(pcs, PI_PoA1, id, wit, C_A, SNs2, gamma, delta, "Tx_Entry_1250.csv");
-
-    // }
-
-    // for(uint8_t i=0;i<100;i++){
-
-    //     Tx_Entry Tx3 = Tx_Entry_Gen(pcs, PI_PoA1, id, wit, C_A, SNs3, gamma, delta, "Tx_Entry_2500.csv");
-
-    // }
-
-    // for(uint8_t i=0;i<100;i++){
-
-    //     Tx_Entry Tx4 = Tx_Entry_Gen(pcs, PI_PoA1, id, wit, C_A, SNs4, gamma, delta, "Tx_Entry_5000.csv");
-
-    // }
-
-
-        Tx_Entry Tx1 = Tx_Entry_Gen(pcs, PI_PoA1, id, wit, C_A, SNs, gamma, delta, "Tx_Entry_125.csv");
-        Tx_Entry Tx2 = Tx_Entry_Gen(pcs, PI_PoA1, id, wit, C_A, SNs2, gamma, delta, "Tx_Entry_250.csv");
-        Tx_Entry Tx3 = Tx_Entry_Gen(pcs, PI_PoA1, id, wit, C_A, SNs3, gamma, delta, "Tx_Entry_500.csv");
-        Tx_Entry Tx4 = Tx_Entry_Gen(pcs, PI_PoA1, id, wit, C_A, SNs4, gamma, delta, "Tx_Entry_1000_tmp.csv");   
-        Tx_Entry Tx5 = Tx_Entry_Gen(pcs, PI_PoA1, id, wit, C_A, SNs5, gamma, delta, "Tx_Entry_20000_tmp.csv");
-
- 
-    // int split = SNs5.size()*(1/5);
+//     return 0;
+// }
 
     
 
-    ZKMP PI_PoA_1(setup);
-    ZKMP PI_PoA_2(setup);
-    ZKSP PI_PoQ(setup);
 
-    uint32_t k = rand()%10;
-    Fr id2 = IDset[k];
-    G1 wit2 = pcs.commit_G1(PolyLongDiv(Polytree(IDset),Polytree({id2})));
-    Fr gamma1; gamma1.setByCSPRNG();
-    Fr gamma2; gamma2.setByCSPRNG();
-    Fr delta1; delta1.setByCSPRNG();
-    Fr delta2; delta2.setByCSPRNG();
-
-    FrVec S_2(SNs.begin(),SNs.begin()+SNs.size()*(1/5));
-    FrVec S_1(SNs.begin()+SNs.size()*(1/5),SNs.end());
+// int main_(){
     
-    FrVec S_4(SNs2.begin(),SNs2.begin()+SNs2.size()*(1/5));
-    FrVec S_3(SNs2.begin()+SNs2.size()*(1/5),SNs2.end());
-
-    FrVec S_6(SNs3.begin(),SNs3.begin()+SNs3.size()*(1/5));
-    FrVec S_5(SNs3.begin()+SNs3.size()*(1/5),SNs3.end());
-
-    FrVec S_8(SNs4.begin(),SNs4.begin()+SNs4.size()*(1/5));
-    FrVec S_7(SNs4.begin()+SNs4.size()*(1/5),SNs4.end());
-
-    FrVec S_10(SNs5.begin(),SNs5.begin()+SNs5.size()*(1/5));
-    FrVec S_9(SNs5.begin()+SNs5.size()*(1/5),SNs5.end());
+//     initPairing(mcl::BLS12_381);
 
 
-
-
-        // Tx_Transfer Tx6 = Tx_Transfer_Gen(pcs, PI_PoA_1, PI_PoA_2, PI_PoQ, id, id2, wit, wit2, C_A, SNs, 
-        // S_1, S_2, Tx1.output1, gamma, gamma1, gamma2, delta, delta1, delta2, "Transfer_125.csv", Tx1.Tid);
-
-        // Tx_Transfer Tx7 = Tx_Transfer_Gen(pcs, PI_PoA_1, PI_PoA_2, PI_PoQ, id, id2, wit, wit2, C_A, SNs2, 
-        // S_3, S_4, Tx2.output1, gamma, gamma1, gamma2, delta, delta1, delta2, "Transfer_250.csv", Tx2.Tid);
-
-        // Tx_Transfer Tx8 = Tx_Transfer_Gen(pcs, PI_PoA_1, PI_PoA_2, PI_PoQ, id, id2, wit, wit2, C_A, SNs3, 
-        // S_5, S_6, Tx3.output1, gamma, gamma1, gamma2, delta, delta1, delta2, "Transfer_500.csv", Tx3.Tid);
-
-        // Tx_Transfer Tx9 = Tx_Transfer_Gen(pcs, PI_PoA_1, PI_PoA_2, PI_PoQ, id, id2, wit, wit2, C_A, SNs4, 
-        // S_7, S_8, Tx4.output1, gamma, gamma1, gamma2, delta, delta1, delta2, "Transfer_1000.csv", Tx4.Tid);
-
-        // Tx_Transfer Tx10 = Tx_Transfer_Gen(pcs, PI_PoA_1, PI_PoA_2, PI_PoQ, id, id2, wit, wit2, C_A, SNs5, 
-        // S_9, S_10, Tx5.output1, gamma, gamma1, gamma2, delta, delta1, delta2, "Transfer_2000.csv", Tx5.Tid);
-
-
-
-    // // FrVec S_2_2(SNs.begin(),SNs.begin()+SNs.size()*(2/5));
-    // // FrVec S_1_2(SNs.begin()+SNs.size()*(2/5),SNs.end());
-    // // FrVec S_2_3(SNs.begin(),SNs.begin()+SNs.size()*(3/5));
-    // // FrVec S_1_3(SNs.begin()+SNs.size()*(3/5),SNs.end());
-
-        Tx_Transfer Tx6 = Tx_Transfer_Gen(pcs, PI_PoA_1, PI_PoA_2, PI_PoQ, id, id2, wit, wit2, C_A, SNs, 
-        {}, SNs, Tx1.output1, gamma, gamma1, gamma2, delta, delta1, delta2, "Transfer_625.csv", Tx1.Tid);
-
-        Tx_Transfer Tx7 = Tx_Transfer_Gen(pcs, PI_PoA_1, PI_PoA_2, PI_PoQ, id, id2, wit, wit2, C_A, SNs2, 
-        {}, SNs2, Tx2.output1, gamma, gamma1, gamma2, delta, delta1, delta2, "Transfer_1250.csv", Tx2.Tid);
-
-        Tx_Transfer Tx8 = Tx_Transfer_Gen(pcs, PI_PoA_1, PI_PoA_2, PI_PoQ, id, id2, wit, wit2, C_A, SNs3, 
-        {}, SNs3, Tx3.output1, gamma, gamma1, gamma2, delta, delta1, delta2, "Transfer_2500.csv", Tx3.Tid);
-
-        Tx_Transfer Tx9 = Tx_Transfer_Gen(pcs, PI_PoA_1, PI_PoA_2, PI_PoQ, id, id2, wit, wit2, C_A, SNs4, 
-        {}, SNs4, Tx4.output1, gamma, gamma1, gamma2, delta, delta1, delta2, "Transfer_5000.csv", Tx4.Tid);
-
-        Tx_Transfer Tx10 = Tx_Transfer_Gen(pcs, PI_PoA_1, PI_PoA_2, PI_PoQ, id, id2, wit, wit2, C_A, SNs5, 
-        {}, SNs5, Tx5.output1, gamma, gamma1, gamma2, delta, delta1, delta2, "Transfer_10000.csv", Tx5.Tid);
-
-    for(int i=0;i<100;i++){
-
-        Tx_Exit Tx11 = Tx_Exit_Gen(pcs,Tx6.output1, PI_PoA, PI_PoQ, id2, wit2, C_A, gamma1, gamma2, delta1, delta2, SNs, {}, SNs, "Exit_125.csv");
-        Tx_Exit Tx12 = Tx_Exit_Gen(pcs,Tx7.output1, PI_PoA, PI_PoQ, id2, wit2, C_A, gamma1, gamma2, delta1, delta2, SNs2, {}, SNs2, "Exit_250.csv");
-        Tx_Exit Tx13 = Tx_Exit_Gen(pcs,Tx8.output1, PI_PoA, PI_PoQ, id2, wit2, C_A, gamma1, gamma2, delta1, delta2, SNs3, {}, SNs3, "Exit_500.csv");
-        Tx_Exit Tx14 = Tx_Exit_Gen(pcs,Tx9.output1, PI_PoA, PI_PoQ, id2, wit2, C_A, gamma1, gamma2, delta1, delta2, SNs4, {}, SNs4, "Exit_1000.csv");
-        Tx_Exit Tx15 = Tx_Exit_Gen(pcs,Tx10.output1, PI_PoA, PI_PoQ, id2, wit2, C_A, gamma1, gamma2, delta1, delta2, SNs5, {}, SNs5, "Exit_2000.csv");
-
-    }
     // ZKMP PI_PoA2(setup);
     // Fr gamma6; gamma6.setByCSPRNG();
     // Fr delta6; delta6.setByCSPRNG();
@@ -776,4 +663,4 @@ int main(){
     // }
     
 
-}
+// }

@@ -192,11 +192,11 @@ const std::string& file_name4, const std::string& file_name5, const std::string&
     FrVec tmp;
     for(uint32_t i=0;i<n;i++){
         
-        tmp = Polytree({IDs[i]});
-        G2 Ctmp=pcs.commit(tmp);
+        // tmp = Polytree({IDs[i]});
+        G2 Ctmp=pcs.commit({IDs[i], 1});
         C.push_back(Ctmp);
     }
-    G2 C_A = pcs.commit(Polytree(IDs));
+    G2 C_A = pcs.commit(constructMemPoly(IDs));
     //
 
     Agg_input input = {pcs, C, r, IDs, C_A};
@@ -236,17 +236,17 @@ const std::string& file_name4, const std::string& file_name5, const std::string&
         Agg_PME_prover_input pme_p_in;
         hashAndMapToG1(pme_p_in.H, "H");
 
-
+        // MEASURE TIME
         auto start_1 = chrono::steady_clock::now();
         
-        FrVec Ix = Polytree(input.id_i);
+        FrVec Ix = constructMemPoly(input.id_i);
         FrVec Rx = {0};
-
 
         auto end_1 = chrono::steady_clock::now();
         elaps = duration_cast<microseconds>(end_1-start_1);
         total_1 = total_1 + elaps;
 
+        // MEASURE TIME
         start_1 = chrono::steady_clock::now();
 
         PCS& pcs=input.pcs;
@@ -260,39 +260,49 @@ const std::string& file_name4, const std::string& file_name5, const std::string&
         }
 
         total = total + total_1;
-
-
-        //PME_prover dummy input setting
-        for(uint32_t i=0;i<input.id_i.size();i++){
-
-            FrVec tmp = PolyLongDiv(Ix,{input.id_i[i],1});
-            pme_p_in.w.push_back(pcs.commit_G1(tmp));
-
-        }
     
-
+        // MEASURE TIME-PME
         start_1 = chrono::steady_clock::now();
 
+
+        // Optimization
+        cachedAggAwResult cachedVal = cachedAggAWPolyGen(input.id_i);
+
+        // Compute Rx
         Fr tmp_2N = 1/(input.id_i.size());
-        for(uint32_t i=0;i<input.id_i.size();i++){
-
-            FrVec numer = PolyMul({input.ri[i]},Ix);
-            FrVec denom = {input.id_i[i],1};
-            Rx = PolyAdd(Rx, PolyLongDiv(numer,denom));
-
-            
+        for (uint32_t i = 0; i < input.id_i.size(); i++) {
+            Rx = PolyAdd(Rx, PolyMul({input.ri[i] * tmp_2N}, cachedVal.Payload[i]));
         }
+
+        // It never used....
+        // Fr tmp_2N = 1/(input.id_i.size());
+        // for(uint32_t i=0;i<input.id_i.size();i++){
+
+        //     FrVec numer = PolyMul({input.ri[i] * tmp_2N},Ix);
+        //     FrVec denom = {input.id_i[i],1};
+        //     Rx = PolyAdd(Rx, PolyLongDiv(numer,denom));
+        // }
 
         end_1 = chrono::steady_clock::now();
         elaps = duration_cast<microseconds>(end_1-start_1);
         total_2 = total_2 + elaps;
 
+        //PME_prover dummy input setting
+        // Why don't we measure the time here?
+        for(uint32_t i=0;i<input.id_i.size();i++){
+            pme_p_in.w.push_back(pcs.commit_G1(cachedVal.Payload[i]));
+            // FrVec tmp = PolyLongDiv(Ix,{input.id_i[i],1});
+            // pme_p_in.w.push_back(pcs.commit_G1(tmp));
+        }
+
+        // MEASURE TIME-PME
         start_1 = chrono::steady_clock::now();
 
         Fr r_I; r_I.setByCSPRNG();
-        G2 C_I = pcs.commit(Ix) + pcs.commit_h2({r_I});
-        G2 C_Ip = pcs.commit(Ix) + pcs.commit_h2(Rx);
+        G2 C_nI = pcs.commit(Ix);
 
+        G2 C_I = C_nI + pcs.commit_h2({r_I});
+        G2 C_Ip = C_nI + pcs.commit_h2(Rx);
 
         end_1 = chrono::steady_clock::now();
         elaps = duration_cast<microseconds>(end_1-start_1);
@@ -301,16 +311,26 @@ const std::string& file_name4, const std::string& file_name5, const std::string&
         start_1 = chrono::steady_clock::now();        
 
         FrVec c;
-        for(uint32_t i=0;i<input.id_i.size();i++){
 
-            c.push_back(1/PolyEvaluate(PolyDifferentiate(Ix), -input.id_i[i]));
-
+        // Optimization
+        FrVec IxD = PolyDifferentiate(Ix);
+        
+        for (uint32_t i=0;i<input.id_i.size();i++) {
+            c.push_back(1/PolyEvaluate(IxD, -input.id_i[i]));
         }
+        // cout << "YAY" << endl;
+
+        // for(uint32_t i=0;i<input.id_i.size();i++){
+
+        //     c.push_back(1/PolyEvaluate(PolyDifferentiate(Ix), -input.id_i[i]));
+
+        // }
 
         end_1 = chrono::steady_clock::now();
         elaps = duration_cast<microseconds>(end_1-start_1);
         total_2 = total_2 + elaps;
 
+        // MEASURE TIME-PME
         start_1 = chrono::steady_clock::now();   
 
         Fr alpha; alpha.setByCSPRNG();
@@ -333,15 +353,25 @@ const std::string& file_name4, const std::string& file_name5, const std::string&
 
         }
 
+        // MEASURE TIME-PME
         start_1 = chrono::steady_clock::now();
 
-        vector<G1> W;
-        G1 w_I;w_I.clear();
-        for(uint32_t i=0;i<c.size()/2;i++){
 
-            w_I = w_I + PME_V2(P[i],P[i+1],pcs.commit(Ix),input.id_i[i],input.id_i[i+1],e[i],e[i+1],alpha,pcs);
-
+        // Optimized
+        vector<G1> W; G1 w_I;
+        for (uint32_t i = 0; i < c.size() / 2; i++) {
+            W.push_back(PME_V2(P[i],P[i+1],C_nI,input.id_i[i],input.id_i[i+1],e[i],e[i+1],alpha,pcs));
         }
+        FrVec expon(1, W.size());
+        G1::mulVec(w_I, &W[0], &expon[0], W.size());
+
+        // vector<G1> W;
+        // G1 w_I; w_I.clear();
+        // for(uint32_t i=0;i<c.size()/2;i++){
+
+        //     w_I = w_I + PME_V2(P[i],P[i+1],pcs.commit(Ix),input.id_i[i],input.id_i[i+1],e[i],e[i+1],alpha,pcs);
+
+        // }
 
         end_1 = chrono::steady_clock::now();
         elaps = duration_cast<microseconds>(end_1-start_1);
@@ -353,12 +383,13 @@ const std::string& file_name4, const std::string& file_name5, const std::string&
         total = total + total_2;
 
         zkbpacc_setup setup2;
-        setup2.init(pcs.pp.g1si.size());
+        setup2.setup_from_pcs(pcs);
         setup2.g1si = &pcs.pp.g1si[0];
         setup2.g2si = &pcs.pp.g2si[0];
 
         ZKMP PI_zkmp(setup2);
 
+        // MEASURE TIME - ZKMP
         start_1 = chrono::steady_clock::now();
 
         PI_zkmp.prove(C_I, input.C_A, w_I, r_I, 0);
@@ -372,6 +403,7 @@ const std::string& file_name4, const std::string& file_name5, const std::string&
         }
         total = total + total_3;
 
+        // MEASURE TIME - zkIPP
         start_1 = chrono::steady_clock::now();
 
         uint32_t temp = nextPowOf2(input.C_i.size());
@@ -390,6 +422,7 @@ const std::string& file_name4, const std::string& file_name5, const std::string&
         }
         total = total + total_4;
 
+        // MEASURE TIME
         start_1 = chrono::steady_clock::now();
 
         Fr z;
@@ -406,6 +439,7 @@ const std::string& file_name4, const std::string& file_name5, const std::string&
         }
         total = total + total_5;
 
+        // MEASURE TIME
         start_1 = chrono::steady_clock::now();
 
         Agg_output out = {C_I, C_Ip, PI_zkmp, PI_ipp, pi_open};
@@ -437,73 +471,8 @@ const std::string& file_name4, const std::string& file_name5, const std::string&
 
 }
 
-int main(){
+// int main(){
 
-    initPairing(mcl::BLS12_381);
-    
-    //     struct Agg_input {
+//     initPairing(mcl::BLS12_381);
 
-    //     PCS pcs;
-    //     vector<G2> C_i;
-    //     FrVec ri;
-    //     FrVec id_i;
-    //     G2 C_A;
-        
-    // };
-
-    // PCS pcs;
-    
-    // FrVec IDs;
-    // FrVec r;
-    // FrVec x;
-
-    // for(uint32_t i=0;i<1000;i++){
-
-    //     Fr tmp;
-    //     tmp.setByCSPRNG();
-    //     IDs.push_back(tmp);
-
-    // }
-
-
-    // for(uint32_t i=0;i<1000;i++){
-
-    //     Fr tmp;
-    //     tmp.setByCSPRNG();
-    //     r.push_back(tmp);
-
-    // }
-
-    // pcs.setup(nextPowOf2(IDs.size()));
-    // G2 A = pcs.commit(Polytree(IDs));
-    
-    // vector<G2> C;
-    // for(uint32_t i=0;i<IDs.size();i++){
-    //     FrVec tmp;
-    //     tmp = Polytree({IDs[i]});
-    //     G2 Ctmp=pcs.commit(tmp);
-    //     C.push_back(Ctmp);
-    // }
-    
-    // G2 C_A = pcs.commit(Polytree(IDs));
-
-    // Agg_input in = {pcs, C, r, IDs, C_A};
-
-    // AggZKMP(in);
-
-    std::string file_name = "Agg_ZKMP.csv";
-    std::string file_name1 = "Agg_ZKMP_commit.csv";     
-    std::string file_name2 = "Agg_ZKMP_PME.csv";  
-    std::string file_name3 = "Agg_ZKMP_ZKMP.csv";  
-    std::string file_name4 = "Agg_ZKMP_ZKIPP.csv";  
-    std::string file_name5 = "Agg_ZKMP_PCopenP.csv";  
-    std::string file_name6 = "Agg_ZKMP_StructGen.csv";  
-    
-    
-    AggZKMP_test(2,file_name, file_name1, file_name2, file_name3, file_name4, file_name5, file_name6);
-    AggZKMP_test(256,file_name, file_name1, file_name2, file_name3, file_name4, file_name5, file_name6);
-    AggZKMP_test(512,file_name, file_name1, file_name2, file_name3, file_name4, file_name5, file_name6);
-    AggZKMP_test(1024,file_name, file_name1, file_name2, file_name3, file_name4, file_name5, file_name6);
-    AggZKMP_test(2048,file_name, file_name1, file_name2, file_name3, file_name4, file_name5, file_name6);
-
-}
+// }
