@@ -1,3 +1,6 @@
+#ifndef PME_H
+#define PME_H
+
 #include <mcl/bls12_381.hpp>
 #include <iostream>
 #include <limits>
@@ -69,4 +72,4 @@ G1 PME_V2(G1 P_1, G1 P_2, G2 A, Fr d1, Fr d2, Fr e1, Fr e2, Fr alpha, PCS pcs){
 
 }
 
-
+#endif

@@ -507,9 +507,9 @@ struct IPPproof {
         }
 };
 
-bool IPPverify(IPPproof pi){
+bool IPPverify(IPPproof *pi){
     
-    uint32_t lgn = pi.L.size();
+    uint32_t lgn = pi->L.size();
     FrVec x_vec;
 
     // Compute Left
@@ -518,23 +518,23 @@ bool IPPverify(IPPproof pi){
     GT P_v;
     
     for(uint32_t i=0;i<lgn;i++){
-        string buf = pi.P.getStr()+pi.L[i].getStr()+pi.R[i].getStr();
+        string buf = pi->P.getStr()+pi->L[i].getStr()+pi->R[i].getStr();
         Fr c;
         c.setHashOf(buf);
         expon.push_back(c);
         expon.push_back(1/c);
         x_vec.push_back(1/c);
-        base.push_back(pi.L[i]);
-        base.push_back(pi.R[i]);
+        base.push_back(pi->L[i]);
+        base.push_back(pi->R[i]);
     }
         
     GT::powVec(P_v, &base[0], &expon[0], 2*lgn);
-    P_v = P_v * pi.P;
+    P_v = P_v * pi->P;
         
     // Compute Right
     Fr one = Fr(1);
     
-    uint32_t n = pi.gg.size();
+    uint32_t n = pi->gg.size();
     expon.clear();
     expon.push_back(one);
        
@@ -548,9 +548,9 @@ bool IPPverify(IPPproof pi){
     
     // Do MSM & Pairing
     G2 g_v;
-    G2::mulVec(g_v, &pi.gg[0], &expon[0], n);
+    G2::mulVec(g_v, &pi->gg[0], &expon[0], n);
     GT res;
-    pairing(res, pi.w, g_v);
+    pairing(res, pi->w, g_v);
 
     // Check Left == Right
     bool flag=(P_v==res);
@@ -633,14 +633,14 @@ IPPproof zkIPPprove(vector<G2> gg, GT P, vector<G1> ww)
         return pi_zk;
 }
 
-bool zkIPPverify(IPPproof pi){
+bool zkIPPverify(IPPproof *pi){
 
     Fr chal;
-    chal.setHashOf(pi.Q.getStr());
+    chal.setHashOf(pi->Q.getStr());
     GT P_c;
-    GT::pow(P_c,pi.P,chal);
-    GT R=P_c*pi.Q;
-    pi.P=R;
+    GT::pow(P_c,pi->P,chal);
+    GT R=P_c*pi->Q;
+    pi->P=R;
 
     bool flag=IPPverify(pi);
     return flag;
@@ -747,38 +747,38 @@ struct ZKMP {
 
 };
 
-bool ZKMP_verify(ZKMP pi){
+bool ZKMP_verify(ZKMP *pi){
 
-    string buf=pi.msg.P_1.getStr()+pi.msg.P_2.getStr()+pi.msg.R_1.getStr()+pi.msg.R_2.getStr()+pi.msg.R_3.getStr();
+    string buf=pi->msg.P_1.getStr()+pi->msg.P_2.getStr()+pi->msg.R_1.getStr()+pi->msg.R_2.getStr()+pi->msg.R_3.getStr();
     Fr c;
     c.setHashOf(buf);
 
-    G1 base[3] = {pi.msg.P_1, pi.setup.g1, pi.setup.Frakg};
+    G1 base[3] = {pi->msg.P_1, pi->setup.g1, pi->setup.Frakg};
 
     // Check R1
     G1 right1;
-    Fr expon1[3] = {-c, pi.response.s_tau_1, pi.response.s_tau_2};
+    Fr expon1[3] = {-c, pi->response.s_tau_1, pi->response.s_tau_2};
     G1::mulVec(right1, base, expon1, 3);
 
     // Check R2
     G1 right2;
-    Fr expon2[3] = {pi.response.s_r_I, -pi.response.s_delta_1, -pi.response.s_delta_2};
+    Fr expon2[3] = {pi->response.s_r_I, -pi->response.s_delta_1, -pi->response.s_delta_2};
     G1::mulVec(right2, base, expon2, 3);
 
     // Check R3
-    G1 leftMP[3] = {pi.setup.Frakg, pi.msg.P_2, pi.setup.g1};
-    G2 firstTerm = pi.C_I * pi.response.s_tau_1 + pi.setup.h2 * (-pi.response.s_delta_1);
-    G2 secondTerm = pi.setup.h2 * pi.response.s_r_I + pi.C_I * (-c);
-    G2 thirdTerm = pi.setup.h2 * (-pi.response.s_r_A) + pi.C_A * c;
+    G1 leftMP[3] = {pi->setup.Frakg, pi->msg.P_2, pi->setup.g1};
+    G2 firstTerm = pi->C_I * pi->response.s_tau_1 + pi->setup.h2 * (-pi->response.s_delta_1);
+    G2 secondTerm = pi->setup.h2 * pi->response.s_r_I + pi->C_I * (-c);
+    G2 thirdTerm = pi->setup.h2 * (-pi->response.s_r_A) + pi->C_A * c;
     G2 rightMP[3] = {firstTerm, secondTerm, thirdTerm};
 
     GT right3;
     millerLoopVec(right3, leftMP, rightMP, 3);
     finalExp(right3, right3);
 
-    bool flag1 = (pi.msg.R_1 == right1);
-    bool flag2 = (pi.msg.R_2 == right2);
-    bool flag3 = (pi.msg.R_3 == right3);
+    bool flag1 = (pi->msg.R_1 == right1);
+    bool flag2 = (pi->msg.R_2 == right2);
+    bool flag3 = (pi->msg.R_3 == right3);
 
     return flag1 && flag2 && flag3;
 };
@@ -887,19 +887,19 @@ struct ZKNMP {
     }
 };
 
-bool ZKNMP_verify(ZKNMP pi){
-    string buf=pi.msg.P_1.getStr()+pi.msg.P_2.getStr()+pi.msg.Q_1.getStr()+pi.msg.Q_2.getStr()+pi.msg.R_1.getStr()+pi.msg.R_2.getStr()
-    +pi.msg.R_3.getStr()+pi.msg.R_4.getStr()+pi.msg.R_5.getStr();
+bool ZKNMP_verify(ZKNMP *pi){
+    string buf=pi->msg.P_1.getStr()+pi->msg.P_2.getStr()+pi->msg.Q_1.getStr()+pi->msg.Q_2.getStr()+pi->msg.R_1.getStr()+pi->msg.R_2.getStr()
+    +pi->msg.R_3.getStr()+pi->msg.R_4.getStr()+pi->msg.R_5.getStr();
     Fr c;
     c.setHashOf(buf);
 
-    G1 base1[3] = {pi.msg.P_1, pi.setup.g1, pi.setup.Frakg};
-    G1 base2[3] = {pi.msg.Q_1, pi.setup.g1, pi.setup.Frakh};
+    G1 base1[3] = {pi->msg.P_1, pi->setup.g1, pi->setup.Frakg};
+    G1 base2[3] = {pi->msg.Q_1, pi->setup.g1, pi->setup.Frakh};
 
-    Fr expon1[3] = {-c, pi.response.s_tau_i[0], pi.response.s_tau_i[1]};
-    Fr expon2[3] = {pi.response.s_r_I, -pi.response.s_delta_i[0], -pi.response.s_delta_i[1]};
-    Fr expon3[3] = {-c, pi.response.s_tau_i[2], pi.response.s_tau_i[3]};
-    Fr expon4[3] = {pi.response.s_r_A, -pi.response.s_delta_i[2], -pi.response.s_delta_i[3]};
+    Fr expon1[3] = {-c, pi->response.s_tau_i[0], pi->response.s_tau_i[1]};
+    Fr expon2[3] = {pi->response.s_r_I, -pi->response.s_delta_i[0], -pi->response.s_delta_i[1]};
+    Fr expon3[3] = {-c, pi->response.s_tau_i[2], pi->response.s_tau_i[3]};
+    Fr expon4[3] = {pi->response.s_r_A, -pi->response.s_delta_i[2], -pi->response.s_delta_i[3]};
 
     G1 R_1v, R_2v, R_3v, R_4v;
     G1::mulVec(R_1v, base1, expon1, 3);
@@ -910,40 +910,40 @@ bool ZKNMP_verify(ZKNMP pi){
     GT R_5v;
     G1 first;
     G1 base[4] = {
-        pi.msg.P_2, 
-        pi.msg.Q_2,
-        pi.setup.Frakg, 
-        pi.setup.Frakh
+        pi->msg.P_2, 
+        pi->msg.Q_2,
+        pi->setup.Frakg, 
+        pi->setup.Frakh
     };
     Fr expon[4] = {
-        pi.response.s_r_I,
-        pi.response.s_r_A,
-        -pi.response.s_delta_i[0],
-        -pi.response.s_delta_i[2],
+        pi->response.s_r_I,
+        pi->response.s_r_A,
+        -pi->response.s_delta_i[0],
+        -pi->response.s_delta_i[2],
     };
     G1::mulVec(first, base, expon, 4);
 
     G1 leftMP[4] = {
-        pi.setup.g1 * (c),
-        pi.setup.Frakg * pi.response.s_tau_i[0] + pi.msg.P_2 * (-c),
-        pi.setup.Frakh * pi.response.s_tau_i[2] + pi.msg.Q_2 * (-c),
+        pi->setup.g1 * (c),
+        pi->setup.Frakg * pi->response.s_tau_i[0] + pi->msg.P_2 * (-c),
+        pi->setup.Frakh * pi->response.s_tau_i[2] + pi->msg.Q_2 * (-c),
         first,
     };
     G2 rightMP[4] = {
-        pi.setup.g2,
-        pi.C_I,
-        pi.C_A,
-        pi.setup.h2
+        pi->setup.g2,
+        pi->C_I,
+        pi->C_A,
+        pi->setup.h2
     };
 
     millerLoopVec(R_5v, leftMP, rightMP, 4);
     finalExp(R_5v, R_5v);
 
-    bool flag1 = (pi.msg.R_1 == R_1v);
-    bool flag2 = (pi.msg.R_2 == R_2v);
-    bool flag3 = (pi.msg.R_3 == R_3v);
-    bool flag4 = (pi.msg.R_4 == R_4v);
-    bool flag5 = (pi.msg.R_5 == R_5v);
+    bool flag1 = (pi->msg.R_1 == R_1v);
+    bool flag2 = (pi->msg.R_2 == R_2v);
+    bool flag3 = (pi->msg.R_3 == R_3v);
+    bool flag4 = (pi->msg.R_4 == R_4v);
+    bool flag5 = (pi->msg.R_5 == R_5v);
     
     return flag1 && flag2 && flag3 && flag4 && flag5;
 }
@@ -1083,21 +1083,21 @@ struct ZKSP {
 
 };
 
-bool ZKSP_verify(ZKSP pi){
+bool ZKSP_verify(ZKSP *pi){
 
-    string buf=pi.msg.P_1.getStr()+pi.msg.P_2.getStr()+pi.msg.P_3.getStr()+pi.msg.P_4.getStr()+pi.msg.R_1.getStr()+pi.msg.R_2.getStr()
-        +pi.msg.R_3.getStr()+pi.msg.R_4.getStr()+pi.msg.R_5.getStr()+pi.msg.R_6.getStr()+pi.msg.R_7.getStr();
+    string buf=pi->msg.P_1.getStr()+pi->msg.P_2.getStr()+pi->msg.P_3.getStr()+pi->msg.P_4.getStr()+pi->msg.R_1.getStr()+pi->msg.R_2.getStr()
+        +pi->msg.R_3.getStr()+pi->msg.R_4.getStr()+pi->msg.R_5.getStr()+pi->msg.R_6.getStr()+pi->msg.R_7.getStr();
     Fr c;
     c.setHashOf(buf);
 
     // Prepare MSM bases/exponents for R1 -- R4
-    G1 base1[3] = {pi.msg.P_1, pi.setup.g1, pi.setup.Frakg};
-    G1 base2[3] = {pi.msg.P_3, pi.setup.g1, pi.setup.Frakg};
+    G1 base1[3] = {pi->msg.P_1, pi->setup.g1, pi->setup.Frakg};
+    G1 base2[3] = {pi->msg.P_3, pi->setup.g1, pi->setup.Frakg};
 
-    Fr expon1[3] = {-c, pi.response.s_tau_i[0], pi.response.s_tau_i[1]};
-    Fr expon2[3] = {pi.response.s_r_I, -pi.response.s_delta_i[0], -pi.response.s_delta_i[1]};
-    Fr expon3[3] = {-c, pi.response.s_tau_i[2], pi.response.s_tau_i[3]};
-    Fr expon4[3] = {pi.response.s_r_J, -pi.response.s_delta_i[2], -pi.response.s_delta_i[3]};
+    Fr expon1[3] = {-c, pi->response.s_tau_i[0], pi->response.s_tau_i[1]};
+    Fr expon2[3] = {pi->response.s_r_I, -pi->response.s_delta_i[0], -pi->response.s_delta_i[1]};
+    Fr expon3[3] = {-c, pi->response.s_tau_i[2], pi->response.s_tau_i[3]};
+    Fr expon4[3] = {pi->response.s_r_J, -pi->response.s_delta_i[2], -pi->response.s_delta_i[3]};
 
     // Compute R1 -- R4
     G1 R_1v, R_2v, R_3v, R_4v;
@@ -1108,47 +1108,47 @@ bool ZKSP_verify(ZKSP pi){
 
     // Compute R5 -- R7
     G1 base5[3] = {
-        pi.msg.P_2, pi.setup.Frakg, pi.setup.g1
+        pi->msg.P_2, pi->setup.Frakg, pi->setup.g1
     };
     Fr expon5[3] = {
-        pi.response.s_r_I, -pi.response.s_delta_i[0], -pi.response.s_r_A
+        pi->response.s_r_I, -pi->response.s_delta_i[0], -pi->response.s_r_A
     };
     G1 first5;
     G1::mulVec(first5, base5, expon5, 3);
 
     G1 leftMP5[3] = {
-        pi.setup.Frakg * pi.response.s_tau_i[0] + pi.msg.P_2 * (-c),
-        pi.setup.g1 * c,
+        pi->setup.Frakg * pi->response.s_tau_i[0] + pi->msg.P_2 * (-c),
+        pi->setup.g1 * c,
         first5
     };
     G2 rightMP5[3] = {
-        pi.C_I,
-        pi.C_A,
-        pi.setup.h2
+        pi->C_I,
+        pi->C_A,
+        pi->setup.h2
     };
     GT R_5v;
     millerLoopVec(R_5v, leftMP5, rightMP5, 3);
     finalExp(R_5v, R_5v);    
 
     G1 base6[3] = {
-        pi.msg.P_4, pi.setup.Frakg, pi.setup.g1
+        pi->msg.P_4, pi->setup.Frakg, pi->setup.g1
     };
     Fr expon6[3] = {
-        pi.response.s_r_J, -pi.response.s_delta_i[2], -pi.response.s_r_A
+        pi->response.s_r_J, -pi->response.s_delta_i[2], -pi->response.s_r_A
     };
     G1 first6;
     G1::mulVec(first6, base6, expon6, 3);
 
     G1 leftMP6[3] = {
-        pi.setup.Frakg * pi.response.s_tau_i[2] + pi.msg.P_4 * (-c),
-        pi.setup.g1 * c,
+        pi->setup.Frakg * pi->response.s_tau_i[2] + pi->msg.P_4 * (-c),
+        pi->setup.g1 * c,
         first6
     };
 
     G2 rightMP6[3] = {
-        pi.C_J,
-        pi.C_A,
-        pi.setup.h2
+        pi->C_J,
+        pi->C_A,
+        pi->setup.h2
     };
     GT R_6v;
     millerLoopVec(R_6v, leftMP6, rightMP6, 3);
@@ -1156,13 +1156,13 @@ bool ZKSP_verify(ZKSP pi){
 
 
     G1 leftMP7[2] = {
-        pi.setup.g1,
-        pi.msg.P_4 * c + pi.setup.Frakg * (-pi.response.s_tau_i[2])
+        pi->setup.g1,
+        pi->msg.P_4 * c + pi->setup.Frakg * (-pi->response.s_tau_i[2])
     };
 
     G2 rightMP7[2] = {
-        pi.setup.h2 * pi.response.s_r_I + pi.C_I * (-c),        
-        pi.setup.g2si[0]
+        pi->setup.h2 * pi->response.s_r_I + pi->C_I * (-c),        
+        pi->setup.g2si[0]
     };
     GT R_7v;
     millerLoopVec(R_7v, leftMP7, rightMP7, 2);
@@ -1170,13 +1170,13 @@ bool ZKSP_verify(ZKSP pi){
 
     // Check that all R's are correctly computed.
     bool flag=true;
-    flag = flag && (pi.msg.R_1 == R_1v);
-    flag = flag && (pi.msg.R_2 == R_2v);
-    flag = flag && (pi.msg.R_3 == R_3v);
-    flag = flag && (pi.msg.R_4 == R_4v);
-    flag = flag && (pi.msg.R_5 == R_5v);
-    flag = flag && (pi.msg.R_6 == R_6v);
-    flag = flag && (pi.msg.R_7 == R_7v);
+    flag = flag && (pi->msg.R_1 == R_1v);
+    flag = flag && (pi->msg.R_2 == R_2v);
+    flag = flag && (pi->msg.R_3 == R_3v);
+    flag = flag && (pi->msg.R_4 == R_4v);
+    flag = flag && (pi->msg.R_5 == R_5v);
+    flag = flag && (pi->msg.R_6 == R_6v);
+    flag = flag && (pi->msg.R_7 == R_7v);
 
     return flag;
 }
@@ -1238,11 +1238,11 @@ struct PoK_proof_g2_n{
 
 };
 
-bool PoK_proof_g2_n_verify(PoK_proof_g2_n pi) {
-    Fr c; c.setHashOf(pi.R.getStr());
+bool PoK_proof_g2_n_verify(PoK_proof_g2_n *pi) {
+    Fr c; c.setHashOf(pi->R.getStr());
     G2 left;
-    G2::mulVec(left, &pi.gg[0], &pi.ss[0], pi.ss.size());
-    G2 right = pi.R + pi.P * c;
+    G2::mulVec(left, &pi->gg[0], &pi->ss[0], pi->ss.size());
+    G2 right = pi->R + pi->P * c;
     return (left == right);
 }
 
@@ -1272,12 +1272,12 @@ struct PoK2_G2{
     }
 };
 
-bool PoK2_G2_verify (PoK2_G2 pi) {
-    string buf = pi.C.getStr() + pi.R.getStr();
+bool PoK2_G2_verify (PoK2_G2 *pi) {
+    string buf = pi->C.getStr() + pi->R.getStr();
     Fr c;
     c.setHashOf(buf);
-    G2 left = pi.R + pi.C * c;
-    G2 right = pi.setup.g2 * pi.z1 + pi.setup.h2 * pi.z2;
+    G2 left = pi->R + pi->C * c;
+    G2 right = pi->setup.g2 * pi->z1 + pi->setup.h2 * pi->z2;
     return (left == right);
 }
 
@@ -1452,9 +1452,9 @@ struct OwnPf {
 
 
 
-bool OwnPf_verify(OwnPf pi) {
-    bool flag1 = PoK2_G2_verify(pi.piPoK);
-    bool flag2 = ZKMP_verify(pi.piMP);
+bool OwnPf_verify(OwnPf *pi) {
+    bool flag1 = PoK2_G2_verify(&pi->piPoK);
+    bool flag2 = ZKMP_verify(&pi->piMP);
     return flag1 && flag2;
 }
 
@@ -1491,9 +1491,9 @@ struct NonOwnPf {
     }
 };
 
-bool NonOwnPf_verify(NonOwnPf pi) {
-    bool flag1 = PoK2_G2_verify(pi.piPoK);
-    bool flag2 = ZKNMP_verify(pi.piNMP);
+bool NonOwnPf_verify(NonOwnPf *pi) {
+    bool flag1 = PoK2_G2_verify(&pi->piPoK);
+    bool flag2 = ZKNMP_verify(&pi->piNMP);
 
     return flag1 && flag2;
 }

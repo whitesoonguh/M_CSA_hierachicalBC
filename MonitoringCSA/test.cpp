@@ -71,7 +71,7 @@ void ZKMP_test(){
 
         auto start_2 = chrono::steady_clock::now();
 
-        bool flag = ZKMP_verify(zkmp);
+        bool flag = ZKMP_verify(&zkmp);
 
         if (flag == 0) {
             throw std::runtime_error("Verification Failed on ZKMP_test");
@@ -143,7 +143,7 @@ void ZKNMP_test(){
 
         auto start_2 = chrono::steady_clock::now();
 
-        bool flag = ZKNMP_verify(nmp);
+        bool flag = ZKNMP_verify(&nmp);
 
         if (flag == 0) {
             throw std::runtime_error("Verification Failed on ZKNMP_test");
@@ -217,7 +217,7 @@ void ZKSP_test(){
 
         auto start_2 = chrono::steady_clock::now();
 
-        bool flag = ZKSP_verify(pi3);
+        bool flag = ZKSP_verify(&pi3);
 
         if (flag == 0) {
             throw std::runtime_error("Verification Failed on ZKSP_test");
@@ -279,7 +279,7 @@ void ZKIPP_test(const std::string& file_name){
 
         auto start_2 = chrono::steady_clock::now();
 
-        bool flag = zkIPPverify(ipp_pi);
+        bool flag = zkIPPverify(&ipp_pi);
 
         if (flag == 0) {
             throw std::runtime_error("Verification Failed on ZKIPP_test");
@@ -305,9 +305,10 @@ void SetupTest(const std::string& file_name){
     std::ofstream fout1(file_name, std::ios::app);
     microseconds elaps;
 
+    uint32_t vals[4] = {5000, 20000, 80000, 320000};
         
 
-        for(uint32_t i=2500;i<320001;i=i*2){
+        for(uint32_t i:vals){
             
             for(uint32_t j=0;j<100;j++){
 
@@ -402,7 +403,7 @@ void SetupTest(const std::string& file_name){
 void OwnPf_test() {
     cout << "<<< OwnPf TEST START >>>" << endl;
 
-    uint32_t vals[4] = {100, 500, 1000, 2000}; 
+    uint32_t vals[4] = {250, 500, 1000, 2000}; 
 
     // Initialize Stuffs
     for (auto val : vals) {
@@ -445,7 +446,7 @@ void OwnPf_test() {
     
             auto start_2 = chrono::steady_clock::now();
     
-            bool flag = OwnPf_verify(proof);
+            bool flag = OwnPf_verify(&proof);
     
             if (flag == 0) {
                 throw std::runtime_error("OwnPf Verification Failed.");
@@ -465,7 +466,7 @@ void OwnPf_test() {
 void NonOwnPf_test() {
     cout << "<<< NonOwnPf TEST START >>>" << endl;
 
-    uint32_t vals[4] = {100, 500, 1000, 2000}; 
+    uint32_t vals[4] = {250, 500, 1000, 2000}; 
 
     for (auto val : vals) {
         cout << "Current Set Size: " << val << endl;
@@ -507,7 +508,7 @@ void NonOwnPf_test() {
 
             auto start_2 = chrono::steady_clock::now();
 
-            bool flag = NonOwnPf_verify(proof);
+            bool flag = NonOwnPf_verify(&proof);
 
             if (flag == 0) {
                 throw std::runtime_error("NonOwnPf Verification Failed.");
@@ -593,43 +594,43 @@ void TxGenTest() {
     Fr delta1; delta1.setByCSPRNG();
     Fr delta2; delta2.setByCSPRNG();
 
-    FrVec S_2(SNs.begin(),SNs.begin()+SNs.size()*(1/5));
-    FrVec S_1(SNs.begin()+SNs.size()*(1/5),SNs.end());
+    FrVec S_2(SNs.begin(),SNs.begin()+SNs.size()/5);
+    FrVec S_1(SNs.begin()+SNs.size()/5,SNs.end());
     
-    FrVec S_4(SNs2.begin(),SNs2.begin()+SNs2.size()*(1/5));
-    FrVec S_3(SNs2.begin()+SNs2.size()*(1/5),SNs2.end());
+    FrVec S_4(SNs2.begin(),SNs2.begin()+SNs2.size()/5);
+    FrVec S_3(SNs2.begin()+SNs2.size()/5,SNs2.end());
 
-    FrVec S_6(SNs3.begin(),SNs3.begin()+SNs3.size()*(1/5));
-    FrVec S_5(SNs3.begin()+SNs3.size()*(1/5),SNs3.end());
+    FrVec S_6(SNs3.begin(),SNs3.begin()+SNs3.size()/5);
+    FrVec S_5(SNs3.begin()+SNs3.size()/5,SNs3.end());
 
-    FrVec S_8(SNs4.begin(),SNs4.begin()+SNs4.size()*(1/5));
-    FrVec S_7(SNs4.begin()+SNs4.size()*(1/5),SNs4.end());
+    FrVec S_8(SNs4.begin(),SNs4.begin()+SNs4.size()/5);
+    FrVec S_7(SNs4.begin()+SNs4.size()/5,SNs4.end());
 
-    FrVec S_10(SNs5.begin(),SNs5.begin()+SNs5.size()*(1/5));
-    FrVec S_9(SNs5.begin()+SNs5.size()*(1/5),SNs5.end());
+    FrVec S_10(SNs5.begin(),SNs5.begin()+SNs5.size()/5);
+    FrVec S_9(SNs5.begin()+SNs5.size()/5,SNs5.end());
 
     for(int i=0;i<100;i++){
 
         Tx_Entry Tx1 = Tx_Entry_Gen(pcs, PI_PoA1, id, wit, C_A, SNs, gamma, delta, "Tx_Entry_125.csv");
         Tx_Entry Tx2 = Tx_Entry_Gen(pcs, PI_PoA1, id, wit, C_A, SNs2, gamma, delta, "Tx_Entry_250.csv");
         Tx_Entry Tx3 = Tx_Entry_Gen(pcs, PI_PoA1, id, wit, C_A, SNs3, gamma, delta, "Tx_Entry_500.csv");
-        Tx_Entry Tx4 = Tx_Entry_Gen(pcs, PI_PoA1, id, wit, C_A, SNs4, gamma, delta, "Tx_Entry_1000_tmp.csv");   
-        Tx_Entry Tx5 = Tx_Entry_Gen(pcs, PI_PoA1, id, wit, C_A, SNs5, gamma, delta, "Tx_Entry_2000_tmp.csv");
+        Tx_Entry Tx4 = Tx_Entry_Gen(pcs, PI_PoA1, id, wit, C_A, SNs4, gamma, delta, "Tx_Entry_1000.csv");   
+        Tx_Entry Tx5 = Tx_Entry_Gen(pcs, PI_PoA1, id, wit, C_A, SNs5, gamma, delta, "Tx_Entry_2000.csv");
 
         Tx_Transfer Tx6 = Tx_Transfer_Gen(pcs, PI_PoA_1, PI_PoA_2, PI_PoQ, id, id2, wit, wit2, C_A, SNs, 
-        {}, SNs, Tx1.output1, gamma, gamma1, gamma2, delta, delta1, delta2, "Transfer_625.csv", Tx1.Tid);
+        S_1, S_2, Tx1.output1, gamma, gamma1, gamma2, delta, delta1, delta2, "Transfer_125.csv", Tx1.Tid);
 
         Tx_Transfer Tx7 = Tx_Transfer_Gen(pcs, PI_PoA_1, PI_PoA_2, PI_PoQ, id, id2, wit, wit2, C_A, SNs2, 
-        {}, SNs2, Tx2.output1, gamma, gamma1, gamma2, delta, delta1, delta2, "Transfer_1250.csv", Tx2.Tid);
+        S_3, S_4, Tx2.output1, gamma, gamma1, gamma2, delta, delta1, delta2, "Transfer_250.csv", Tx2.Tid);
 
         Tx_Transfer Tx8 = Tx_Transfer_Gen(pcs, PI_PoA_1, PI_PoA_2, PI_PoQ, id, id2, wit, wit2, C_A, SNs3, 
-        {}, SNs3, Tx3.output1, gamma, gamma1, gamma2, delta, delta1, delta2, "Transfer_2500.csv", Tx3.Tid);
+        S_5, S_6, Tx3.output1, gamma, gamma1, gamma2, delta, delta1, delta2, "Transfer_500.csv", Tx3.Tid);
 
         Tx_Transfer Tx9 = Tx_Transfer_Gen(pcs, PI_PoA_1, PI_PoA_2, PI_PoQ, id, id2, wit, wit2, C_A, SNs4, 
-        {}, SNs4, Tx4.output1, gamma, gamma1, gamma2, delta, delta1, delta2, "Transfer_5000.csv", Tx4.Tid);
+        S_7, S_8, Tx4.output1, gamma, gamma1, gamma2, delta, delta1, delta2, "Transfer_1000.csv", Tx4.Tid);
 
         Tx_Transfer Tx10 = Tx_Transfer_Gen(pcs, PI_PoA_1, PI_PoA_2, PI_PoQ, id, id2, wit, wit2, C_A, SNs5, 
-        {}, SNs5, Tx5.output1, gamma, gamma1, gamma2, delta, delta1, delta2, "Transfer_10000.csv", Tx5.Tid);
+        S_9, S_10, Tx5.output1, gamma, gamma1, gamma2, delta, delta1, delta2, "Transfer_2000.csv", Tx5.Tid);
 
         Tx_Exit Tx11 = Tx_Exit_Gen(pcs,Tx6.output1, PI_PoA, PI_PoQ, id2, wit2, C_A, gamma1, gamma2, delta1, delta2, SNs, {}, SNs, "Exit_125.csv");
         Tx_Exit Tx12 = Tx_Exit_Gen(pcs,Tx7.output1, PI_PoA, PI_PoQ, id2, wit2, C_A, gamma1, gamma2, delta1, delta2, SNs2, {}, SNs2, "Exit_250.csv");
@@ -691,7 +692,7 @@ void TxVrfyTest() {
         // Entry Verification
         auto start_1 = chrono::steady_clock::now();
         PoK_proof_g2_verify(txe.SN.PI_PoK);
-        ZKMP_verify(txe.output1.PI_PoA);
+        ZKMP_verify(&txe.output1.PI_PoA);
         auto end_1 = chrono::steady_clock::now();
         elaps = duration_cast<microseconds>(end_1 - start_1);
         entry += elaps;
@@ -699,19 +700,19 @@ void TxVrfyTest() {
 
         // Transfer Verification
         auto start_2 = chrono::steady_clock::now();
-        PoK_proof_g2_n_verify(txt.input.PI_PoKE);
-        ZKMP_verify(txt.output1.PI_PoA);
-        ZKMP_verify(txt.output2.PI_PoA);
-        ZKSP_verify(txt.PI_PoQ);
+        PoK_proof_g2_n_verify(&txt.input.PI_PoKE);
+        ZKMP_verify(&txt.output1.PI_PoA);
+        ZKMP_verify(&txt.output2.PI_PoA);
+        ZKSP_verify(&txt.PI_PoQ);
         auto end_2 = chrono::steady_clock::now();
         elaps = duration_cast<microseconds>(end_2 - start_2);
         transfer += elaps;
         
         // Exit Verification
         auto start_3 = chrono::steady_clock::now();
-        PoK_proof_g2_n_verify(txo.input.PI_PoKE);
-        ZKMP_verify(txo.output_.PI_PoA);
-        ZKSP_verify(txo.PI_PoQ);
+        PoK_proof_g2_n_verify(&txo.input.PI_PoKE);
+        ZKMP_verify(&txo.output_.PI_PoA);
+        ZKSP_verify(&txo.PI_PoQ);
         auto end_3 = chrono::steady_clock::now();        
         elaps = duration_cast<microseconds>(end_3 - start_3);
         exit += elaps;
@@ -755,6 +756,6 @@ int main(){
     // Summary Transactions
     TxAggTest();
     // Setup Phase 
-    SetupTest("setup_new.csv");
+    // SetupTest("setup_new.csv");
     return 0;
 }

@@ -22,13 +22,13 @@ make
 Make sure that the `MCL` library path is well recognized by the program. You can add the path by setting the `LD_LIBRARY_PATH` as the following command line:
 
 ```
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/mcl/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../mcl/lib
 ```
 
 After cloning the `MCL` library, you can compile the code by the following command line. Note that `test.cpp` contains all the test codes.
 
 ```
-g++ -o test.exe MonitoringCSA/test.cpp -O2 -Iinclude -I../mcl/include -lmcl -L../mcl/lib
+g++ -o test.exe test.cpp -O2 -Iinclude -I../mcl/include -lmcl -L../mcl/lib
 ```
 
 #### Reproducing Experimental Data
