@@ -783,6 +783,293 @@ bool ZKMP_verify(ZKMP *pi){
     return flag1 && flag2 && flag3;
 };
 
+// Useful Subroutines
+Fr innerProd(FrVec &v1, FrVec &v2) {
+    uint32_t n = v1.size();
+    Fr ret = Fr(0);
+    for (uint32_t i = 0; i < n; i++) {
+        ret += (v1[i] * v2[i]);
+    }
+    return ret;
+}
+
+FrVec hadProduct(FrVec &v1, FrVec &v2) {
+    uint32_t n = v1.size();
+    FrVec ret;
+    for (uint32_t i = 0; i < n; i++) {
+        ret.push_back(v1[i] * v2[i]);
+    }
+    return ret;
+}
+
+Fr sumAllComps(FrVec &v) {
+    uint32_t n = v.size();
+    Fr ret = v[0];
+    for (uint32_t i = 1; i < n; i++) {
+        ret += v[i];
+    }
+    return ret;
+}
+
+struct AZKMP {
+    zkbpacc_setup setup;
+    vector<G2> C_I;
+    G2 C_A;
+
+    AZKMP(zkbpacc_setup setup) {
+        this->setup = setup;
+    }
+
+    void init(zkbpacc_setup setup) {
+        this->setup = setup;
+    }
+
+    struct msg {
+        G1 P_1;
+        vector<G1> P_2s;
+        G1 R_1;
+        G1 R_2;
+        GT R_3;
+    } msg;
+
+    struct response {
+        Fr s_r_A;
+        Fr s_tau_1;
+        Fr s_tau_2;
+        FrVec s_r_Is;
+        FrVec s_delta_1s;
+        FrVec s_delta_2s;
+    } response;
+
+    void prove(vector<G2> C_I, G2 C_A, vector<G1> pi_I, FrVec r_I, Fr r_A) {
+        uint32_t n = C_I.size();
+
+        this->C_I = C_I;
+        this->C_A = C_A;
+
+        // Sample Randoms
+        Fr tau_1; Fr tau_2; Fr r_r_A; Fr r_tau_1; Fr r_tau_2;
+        FrVec r_r_is; FrVec r_delta_1s; FrVec r_delta_2s;
+
+        r_r_is.resize(n); 
+        r_delta_1s.resize(n);
+        r_delta_2s.resize(n);
+
+        tau_1.setByCSPRNG();
+        tau_2.setByCSPRNG();
+        r_r_A.setByCSPRNG();
+        r_tau_1.setByCSPRNG();
+        r_tau_2.setByCSPRNG();
+
+        for (uint32_t i = 0; i < n; i++) {
+            r_r_is[i].setByCSPRNG();
+            r_delta_1s[i].setByCSPRNG();
+            r_delta_2s[i].setByCSPRNG(); 
+        }
+
+        // Compute Deltas
+        FrVec delta_1s; FrVec delta_2s;
+        delta_1s.resize(n); delta_2s.resize(n);
+
+        for (uint32_t i = 0; i < n; i++) {
+            delta_1s[i] = (r_I[i] * tau_1);
+            delta_2s[i] = (r_I[i] * tau_2);
+        }
+
+        // Compute P1 & P2 and obtain a challenge alpha        
+        G1 Frakg_tau_1 =this->setup.Frakg * tau_1;
+        this->msg.P_1 = (this->setup.g1 * tau_1) + (this->setup.Frakg * tau_2);        
+        string buf = this->msg.P_1.getStr();
+        this->msg.P_2s.resize(n);
+        for (uint32_t i = 0; i < n; i++) {
+            this->msg.P_2s[i] = (pi_I[i] + Frakg_tau_1);
+            buf += this->msg.P_2s[i].getStr();
+        }
+        Fr alpha;
+        alpha.setHashOf(buf);
+
+        // Prepare alpha's powers
+        FrVec alphaPows;
+        alphaPows.push_back(Fr(1));
+        for (uint32_t i = 1; i < n; i++) {
+            alphaPows.push_back(alphaPows[i-1] * alpha);
+        }
+
+        // Compute R1
+        this->msg.R_1 = (this->setup.g1 * r_tau_1) + (this->setup.Frakg * r_tau_2);
+
+        // Compute R2
+        // Step 1. Aggregate powers
+        Fr agg_r_r_I = innerProd(alphaPows, r_r_is);
+        Fr agg_r_delta_1s = innerProd(alphaPows, r_delta_1s);
+        Fr agg_r_delta_2s = innerProd(alphaPows, r_delta_2s);
+        
+        // Step 2. Compute R2
+        this->msg.R_2 = (this->msg.P_1 * agg_r_r_I) + (this->setup.g1 * (- agg_r_delta_1s)) + (this->setup.Frakg * (- agg_r_delta_2s));
+
+        // Compute R3
+        // IDEA: Merge MSM operations in a part
+        G2 first; vector<G2> firstMSMBase; firstMSMBase.resize(n+1);
+        for (uint32_t i = 0; i < n; i++) {
+            firstMSMBase[i] = C_I[i];
+        }
+        firstMSMBase[n] = (this->setup.h2);
+
+        FrVec firstMSMExpon; firstMSMExpon.resize(n+1);
+        for (uint32_t i = 0; i < n; i++) {
+            firstMSMExpon[i] = (alphaPows[i] * r_tau_1);
+        }
+        firstMSMExpon[n] = (
+            (- innerProd(alphaPows, r_delta_1s))
+        );
+        G2::mulVec(first, &firstMSMBase[0], &firstMSMExpon[0], n+1);
+
+        // Second Part
+        G1 second; vector<G1> secondMSMBase; secondMSMBase.resize(n+1);
+        for (uint32_t i = 0; i < n; i++) {
+            secondMSMBase[i] = (this->msg.P_2s[i]);
+        }
+        secondMSMBase[n] = (this->setup.g1);
+
+        FrVec secondMSMExpon; secondMSMExpon.resize(n+1);
+        for (uint32_t i = 0; i < n; i++) {
+            secondMSMExpon[i] = (alphaPows[i] * r_r_is[i]);
+        }
+        secondMSMExpon[n] = (
+            (- sumAllComps(alphaPows)) * r_r_A
+        );
+        G1::mulVec(second, &secondMSMBase[0], &secondMSMExpon[0], n+1);
+
+        // Do a final pairing loop
+        G1 leftMP[2] = {this->setup.Frakg, second};
+        G2 rightMP[2] = {first, this->setup.h2};
+        GT R3; 
+        millerLoopVec(R3, leftMP, rightMP, 2);
+        finalExp(R3, R3);
+        this->msg.R_3 = R3;
+
+        buf += this->msg.R_1.getStr();
+        buf += this->msg.R_2.getStr();
+        buf += this->msg.R_3.getStr();
+
+        Fr c;
+        c.setHashOf(buf);
+
+        // Prepare Responses
+        this->response.s_r_A = r_r_A + c * r_A;
+        this->response.s_tau_1 = r_tau_1 + c * tau_1;
+        this->response.s_tau_2 = r_tau_2 + c * tau_2;
+
+        this->response.s_r_Is.resize(n);
+        this->response.s_delta_1s.resize(n);
+        this->response.s_delta_2s.resize(n);
+
+        for (uint32_t i = 0; i < n; i++) {
+            this->response.s_r_Is[i] = (
+                r_r_is[i] + c * r_I[i]
+            );
+            this->response.s_delta_1s[i] = (
+                r_delta_1s[i] + c * delta_1s[i]
+            );
+            this->response.s_delta_2s[i] = (
+                r_delta_2s[i] + c * delta_2s[i]
+            );                        
+        }
+        // Done!
+    }
+};
+
+bool AZKMP_verify(AZKMP *pi) {
+    uint32_t n = pi->msg.P_2s.size();
+
+    // Retrieve Challenges
+    string buf = pi->msg.P_1.getStr();
+    for (uint32_t i = 0; i < n; i++) {
+        buf += pi->msg.P_2s[i].getStr();
+    }
+
+
+    Fr alpha;
+    alpha.setHashOf(buf);
+
+    buf += pi->msg.R_1.getStr();
+    buf += pi->msg.R_2.getStr();
+    buf += pi->msg.R_3.getStr();
+
+    Fr c;
+    c.setHashOf(buf);
+
+    // Prepare alpha's powers
+    FrVec alphaPows;
+    alphaPows.push_back(Fr(1));
+    for (uint32_t i = 1; i < n; i++) {
+        alphaPows.push_back(alphaPows[i-1] * alpha);
+    }    
+
+    // Check Relations
+    G1 base[3] = {pi->msg.P_1, pi->setup.g1, pi->setup.Frakg};
+
+    // First Relation
+    G1 right1;
+    Fr expon1[3] = {-c, pi->response.s_tau_1, pi->response.s_tau_2};
+    G1::mulVec(right1, base, expon1, 3);
+    
+    // Second Relation
+    G1 right2;
+    Fr expon2[3] = {
+        innerProd(alphaPows, pi->response.s_r_Is),
+        -innerProd(alphaPows, pi->response.s_delta_1s),
+        -innerProd(alphaPows, pi->response.s_delta_2s)
+    };
+    G1::mulVec(right2, base, expon2, 3);
+
+    // Third Relation
+    GT right3;
+    vector<G1> leftMP; leftMP.resize(n+2);
+    vector<G2> rightMP; rightMP.resize(n+2);
+    for (uint32_t i = 0; i < n; i++) {
+        leftMP[i] = (
+            (pi->setup.Frakg * (pi->response.s_tau_1 * alphaPows[i])) + \
+            (pi->msg.P_2s[i] * ((-c) * alphaPows[i]))
+        );
+        rightMP[i] = (pi->C_I[i]);
+    }
+
+    // First "Easy Term"
+    Fr sumAlpha = sumAllComps(alphaPows);
+    leftMP[n] = (pi->setup.g1);
+    rightMP[n] = (
+        (pi->C_A * (c * sumAlpha)) + \    
+        (pi->setup.h2 * ((-pi->response.s_r_A) * sumAlpha ))
+    );
+
+    // Second "Easy Term"
+    vector<G1> _tmp_base; _tmp_base.resize(n + 1);
+    for (uint32_t i = 0; i < n; i++) {
+        _tmp_base[i] = (pi->msg.P_2s[i]);
+    }
+    _tmp_base[n] = (pi->setup.Frakg);
+
+    FrVec _tmp_expon = hadProduct(alphaPows, pi->response.s_r_Is);
+    _tmp_expon.push_back(-innerProd(pi->response.s_delta_1s, alphaPows));
+
+    G1 _tmp_MP_base;
+    G1::mulVec(_tmp_MP_base, &_tmp_base[0], &_tmp_expon[0], n+1);
+
+    leftMP[n+1] = (_tmp_MP_base);
+    rightMP[n+1] = (pi->setup.h2);    
+
+    // Do a final multipairing
+    millerLoopVec(right3, &leftMP[0], &rightMP[0], n+2);
+    finalExp(right3, right3);
+
+    bool flag1 = (pi->msg.R_1 == right1);
+    bool flag2 = (pi->msg.R_2 == right2);
+    bool flag3 = (pi->msg.R_3 == right3);
+
+    return flag1 && flag2 && flag3;
+}
+
 struct ZKNMP {
     zkbpacc_setup setup;
     G2 C_I;
@@ -886,6 +1173,7 @@ struct ZKNMP {
         }
     }
 };
+
 
 bool ZKNMP_verify(ZKNMP *pi){
     string buf=pi->msg.P_1.getStr()+pi->msg.P_2.getStr()+pi->msg.Q_1.getStr()+pi->msg.Q_2.getStr()+pi->msg.R_1.getStr()+pi->msg.R_2.getStr()
@@ -1281,6 +1569,67 @@ bool PoK2_G2_verify (PoK2_G2 *pi) {
     return (left == right);
 }
 
+struct PoK2 {
+    G2 P; G2 R; Fr z1; Fr z2;
+
+    void prove(PCS &pcs, G2 P, Fr x, Fr r) {
+        Fr tau1; Fr tau2;
+        tau1.setByCSPRNG(); tau2.setByCSPRNG();
+        G2 R = pcs.pp.g2si[0] * tau1 + pcs.pp.h2si[0] * tau2;
+        string buf = P.getStr() + R.getStr();
+        Fr c; c.setHashOf(buf);
+        this->P = P;
+        this->z1 = tau1 + c * x; this->z2 = tau2 + c * r;
+        this->R = R;
+    }
+};
+
+bool Pok2_verify(PCS &pcs, PoK2 *pi) {
+    string buf = pi->P.getStr() + pi->R.getStr();
+    Fr c; c.setHashOf(buf);
+    G2 left = pi->R + pi->P * c;
+    G2 right = pcs.pp.g2si[0] * pi->z1 + pcs.pp.h2si[0] * pi->z2;
+    return (left == right);
+}
+
+
+struct PoKn {
+    G2 P; G2 R; FrVec zs;
+    void prove(PCS &pcs, G2 P, FrVec x, Fr r) {
+        uint32_t n = x.size();
+        FrVec taus; taus.resize(n+1);
+        for (uint32_t i = 0; i < n+1; i++) {
+            taus[i].setByCSPRNG();
+        }
+        G2 R;
+        G2::mulVec(R, &pcs.pp.g2si[0], &taus[0], n);
+        R += pcs.pp.h2si[0] * taus[n];
+
+        string buf = P.getStr() + R.getStr();  
+        Fr c; c.setHashOf(buf);
+
+        FrVec zs; zs.resize(n + 1);
+        for (uint32_t i = 0; i < n; i++) {
+            zs[i] = taus[i] + c * x[i];
+        }
+        zs[n] = taus[n] + c * r;
+
+        this->P = P;
+        this->R = R;
+        this->zs = zs;
+    }
+};
+
+bool PoKn_verify(PCS &pcs, PoKn *pi) {
+    string buf = pi->P.getStr() + pi->R.getStr();
+    Fr c; c.setHashOf(buf);
+    uint32_t n = pi->zs.size();
+    G2 left = pi->R + pi->P * c;
+    G2 right;
+    G2::mulVec(right, &pcs.pp.g2si[0], &pi->zs[0], n-1);
+    right += pcs.pp.h2si[0] * pi->zs[n-1];
+    return (left == right);
+}
 
 // Polynomial Coefficient Calculation
 // Complexity: O(nlogn^2; stable algorithm)
