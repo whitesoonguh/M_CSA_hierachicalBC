@@ -37,16 +37,15 @@ The `test.cpp` contains the following test codes:
 
 - Core Functions
     - ZKMP_test: Membership proof generation and verification.
+    - AZKMP_test: Aggregated membership proof generation and verification (for summary Tx).
     - ZKNMP_test: Non-membership proof generation and verification.
     - ZKSP_test: Set split proof generation and verification.
-    - ZKIPP_test: Zero-knowledge inner pairing proof generation and verification.
 
 - Applications 
     - OwnPf_test: Ownership proof generation and verification.
     - NonOwnPf_test: Non-ownership proof generation and verification.
+    - TxGenTest: (Entry/Transfer/Exit) Transaction proof generation and verification.
+    - TxSummaryTest: Summary Transaction proof generation and verification.
     - SetupTest: Measuing setup time for preparing the parameter of accumulator (by the global manager)
-    - TxGenTest: (Entry/Transfer/Exit) Transaction proof generation.
-    - TxVrfyTest: (Entry/Transfer/Exit) Transaction verification.
-    - TxAggTest: Summary Transaction proof generation and verification.
     
 #### Enjoy!

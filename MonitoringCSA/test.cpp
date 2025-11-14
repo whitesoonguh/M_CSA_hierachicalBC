@@ -1070,21 +1070,16 @@ void TxSummaryTest() {
 int main(){
     initPairing(mcl::BLS12_381);
     // Core Protocols
-    // ZKMP_test();
+    ZKMP_test();
     AZKMP_test();
-    // ZKSP_test();    
-    // ZKNMP_test();
-    // OwnPf_test();
-    // NonOwnPf_test();
-    // ZKIPP_test("ZKIPPTest.csv");
+    ZKSP_test();    
+    ZKNMP_test();
+    OwnPf_test();
+    NonOwnPf_test();
     // Tx Generation & Verification
-    
-    // TxVrfyTest();
-    // Summary Transactions
-    // TxAggTest();
-    // TxGenTest();
-    // TxSummaryTest();
+    TxGenTest();
+    TxSummaryTest();
     // Setup Phase 
-    // SetupTest("setup_new.csv");
+    SetupTest("setup_new.csv");
     return 0;
 }
